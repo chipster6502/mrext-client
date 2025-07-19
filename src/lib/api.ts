@@ -304,4 +304,21 @@ export class ControlApi {
       })
     ).data;
   }
+
+  // ========== CLAUDE AI METHODS ==========
+  async getClaudeStatus(): Promise<ClaudeStatus> {
+    return (await axios.get<ClaudeStatus>(`/claude/status`)).data;
+  }
+
+  async sendClaudeMessage(request: ChatRequest): Promise<ChatResponse> {
+    return (await axios.post<ChatResponse>(`/claude/chat`, request)).data;
+  }
+
+  async getClaudeSuggestions(): Promise<SuggestionsResponse> {
+    return (await axios.get<SuggestionsResponse>(`/claude/suggestions`)).data;
+  }
+
+  async updateClaudeConfig(config: Partial<ClaudeStatus>): Promise<void> {
+    await axios.put(`/claude/config`, config);
+  }
 }

@@ -158,3 +158,42 @@ export interface ScriptsResponse {
   canLaunch: boolean;
   scripts: Script[];
 }
+
+// ========== CLAUDE AI TYPES ==========
+export interface ChatRequest {
+  message: string;
+  include_context?: boolean;
+  session_id?: string;
+}
+
+export interface ChatResponse {
+  content: string;
+  error?: string;
+  timestamp: string;
+  context?: GameContext;
+}
+
+export interface GameContext {
+  core_name: string;
+  game_name: string;
+  system_name: string;
+  game_path: string;
+  last_started: string;
+}
+
+export interface ClaudeStatus {
+  enabled: boolean;
+  api_key_set: boolean;
+  model: string;
+  auto_suggestions: boolean;
+  max_requests: number;
+  chat_history: number;
+  timeout: number;
+}
+
+export interface SuggestionsResponse {
+  suggestions: string[];
+  error?: string;
+  context?: GameContext;
+  timestamp: string;
+}
