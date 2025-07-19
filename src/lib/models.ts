@@ -197,3 +197,23 @@ export interface SuggestionsResponse {
   context?: GameContext;
   timestamp: string;
 }
+
+// ========== PLAYLIST TYPES ==========
+export interface PlaylistRequest {
+  theme: string;
+  max_games?: number;
+  systems?: string[];
+}
+
+export interface PlaylistResponse {
+  games: PlaylistGame[];
+  error?: string;
+  theme: string;
+  timestamp: string;
+}
+
+export interface PlaylistGame {
+  name: string;
+  path: string;
+  system: string;
+}

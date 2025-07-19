@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Box, Tabs, Tab, useTheme } from '@mui/material';
 import {
   Chat as ChatIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  PlaylistPlay as PlaylistIcon
 } from '@mui/icons-material';
 import ClaudeChat from './ClaudeChat';
 import ClaudeSettings from './ClaudeSettings';
+import PlaylistGenerator from './PlaylistGenerator';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -53,13 +55,19 @@ export default function ClaudeTabs() {
           icon={<ChatIcon />} 
           label="Chat" 
           iconPosition="start"
-          sx={{ minWidth: 120 }}
+          sx={{ minWidth: 100 }}
+        />
+        <Tab 
+          icon={<PlaylistIcon />} 
+          label="Playlists" 
+          iconPosition="start"
+          sx={{ minWidth: 100 }}
         />
         <Tab 
           icon={<SettingsIcon />} 
           label="Settings" 
           iconPosition="start"
-          sx={{ minWidth: 120 }}
+          sx={{ minWidth: 100 }}
         />
       </Tabs>
 
@@ -69,6 +77,11 @@ export default function ClaudeTabs() {
           <ClaudeChat />
         </TabPanel>
         <TabPanel value={tabValue} index={1}>
+          <Box sx={{ height: '100%', overflow: 'auto' }}>
+            <PlaylistGenerator />
+          </Box>
+        </TabPanel>
+        <TabPanel value={tabValue} index={2}>
           <Box sx={{ height: '100%', overflow: 'auto' }}>
             <ClaudeSettings />
           </Box>
