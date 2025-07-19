@@ -30,6 +30,7 @@ import PauseIcon from "@mui/icons-material/Pause";
 import LanIcon from "@mui/icons-material/Lan";
 import TerminalIcon from "@mui/icons-material/Terminal";
 import DeveloperBoardIcon from "@mui/icons-material/DeveloperBoard";
+import { SmartToy as AIIcon } from '@mui/icons-material';
 
 import {
   Navigate,
@@ -82,6 +83,7 @@ import Grid from "@mui/material/Grid";
 import Dialog from "@mui/material/Dialog";
 import TextField from "@mui/material/TextField";
 import { Capacitor } from "@capacitor/core";
+import ClaudeChat from './AI/ClaudeChat';
 
 const drawerWidth = 240;
 
@@ -171,6 +173,12 @@ const pages: Page[] = [
     buttonText: "Scripts",
     icon: <TerminalIcon />,
   },
+  {
+  path: "/ai",
+  titleText: "Claude AI",
+  buttonText: "Claude AI", 
+  icon: <AIIcon />,
+},
 ];
 
 function getPage(path: string): Page | undefined {
@@ -547,6 +555,12 @@ export default function ResponsiveDrawer() {
           closeDrawer={handleDrawerToggle}
         />
         <RouterLink
+        to="/ai"
+        text="Claude AI"
+        icon={<AIIcon />}
+        closeDrawer={handleDrawerToggle}
+        />
+        <RouterLink
           to="/settings"
           text="Settings"
           icon={<SettingsIcon />}
@@ -759,6 +773,7 @@ export default function ResponsiveDrawer() {
           <Route path="/scripts" element={<Scripts />} />
           <Route path="/control/auto" element={<ControlAuto />} />
           <Route path="/games" element={<GamesMenu />} />
+          <Route path="/ai" element={<ClaudeChat />} />
         </Routes>
       </Box>
     </Box>
