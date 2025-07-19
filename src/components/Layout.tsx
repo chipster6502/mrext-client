@@ -83,7 +83,7 @@ import Grid from "@mui/material/Grid";
 import Dialog from "@mui/material/Dialog";
 import TextField from "@mui/material/TextField";
 import { Capacitor } from "@capacitor/core";
-import ClaudeChat from './AI/ClaudeChat';
+import ClaudeTabs from './AI/ClaudeTabs';
 
 const drawerWidth = 240;
 
@@ -773,7 +773,7 @@ export default function ResponsiveDrawer() {
           <Route path="/scripts" element={<Scripts />} />
           <Route path="/control/auto" element={<ControlAuto />} />
           <Route path="/games" element={<GamesMenu />} />
-          <Route path="/ai" element={<ClaudeChat />} />
+          <Route path="/ai" element={<ClaudeTabs />} />
         </Routes>
       </Box>
     </Box>
