@@ -51,7 +51,7 @@ const THEME_SUGGESTIONS = [
 // ✅ Enhanced interfaces
 interface PlaylistRequest {
   theme: string;
-  game_count?: number;  // ✅ Corregido: era max_games
+  game_count?: number;  // ✅ Fixed: was max_games
   systems?: string[];
 }
 
@@ -87,12 +87,12 @@ export default function PlaylistGenerator() {
   const [lastTheme, setLastTheme] = useState<string>('');
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   
-  // ✅ NUEVO: Estados para sistemas dinámicos
+  // ✅ NEW: Dynamic systems states
   const [availableSystems, setAvailableSystems] = useState<AvailableSystem[]>([]);
   const [systemsLoading, setSystemsLoading] = useState(true);
   const [systemsError, setSystemsError] = useState<string | null>(null);
 
-  // ✅ NUEVO: Cargar sistemas disponibles al montar componente
+  // ✅ NEW: Load available systems on component mount
   useEffect(() => {
     loadAvailableSystems();
   }, []);
@@ -106,12 +106,12 @@ export default function PlaylistGenerator() {
       
       setAvailableSystems(indexedSystems.systems);
       
-      // ✅ Seleccionar automáticamente algunos sistemas populares si están disponibles
+      // ✅ Automatically select some popular systems if available
       const popularSystems = ['NES', 'SNES', 'Genesis', 'GBA', 'SMS'];
       const availablePopularSystems = indexedSystems.systems
         .filter(sys => popularSystems.includes(sys.id))
         .map(sys => sys.id)
-        .slice(0, 3); // Máximo 3 sistemas por defecto
+        .slice(0, 3); // Maximum 3 systems by default
       
       setSelectedSystems(availablePopularSystems);
     } catch (error) {
@@ -122,7 +122,7 @@ export default function PlaylistGenerator() {
     }
   };
 
-  // ✅ NUEVO: Generar presets dinámicos basados en sistemas disponibles
+  // ✅ NEW: Generate dynamic presets based on available systems
   const generateSystemPresets = () => {
     const availableSystemIds = availableSystems.map(s => s.id);
     
@@ -159,7 +159,7 @@ export default function PlaylistGenerator() {
       }
     ];
     
-    // Solo devolver presets que tengan al menos un sistema disponible
+    // Only return presets that have at least one available system
     return presets.filter(preset => preset.systems.length > 0);
   };
 
@@ -174,7 +174,7 @@ export default function PlaylistGenerator() {
     try {
       const request: PlaylistRequest = {
         theme: playlistTheme.trim(),
-        game_count: maxGames,  // ✅ Corregido: era max_games
+        game_count: maxGames,  // ✅ Fixed: was max_games
         systems: selectedSystems
       };
 
