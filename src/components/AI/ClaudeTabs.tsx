@@ -3,11 +3,13 @@ import { Box, Tabs, Tab, useTheme } from '@mui/material';
 import {
   Chat as ChatIcon,
   Settings as SettingsIcon,
-  PlaylistPlay as PlaylistIcon
+  PlaylistPlay as PlaylistIcon,
+  VideogameAsset as GameInfoIcon
 } from '@mui/icons-material';
 import ClaudeChat from './ClaudeChat';
 import ClaudeSettings from './ClaudeSettings';
 import PlaylistGenerator from './PlaylistGenerator';
+import GameInfo from './GameInfo';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -55,19 +57,25 @@ export default function ClaudeTabs() {
           icon={<ChatIcon />} 
           label="Chat" 
           iconPosition="start"
-          sx={{ minWidth: 100 }}
+          sx={{ minWidth: 80 }}
+        />
+        <Tab 
+          icon={<GameInfoIcon />} 
+          label="Game Info" 
+          iconPosition="start"
+          sx={{ minWidth: 90 }}
         />
         <Tab 
           icon={<PlaylistIcon />} 
           label="Playlists" 
           iconPosition="start"
-          sx={{ minWidth: 100 }}
+          sx={{ minWidth: 90 }}
         />
         <Tab 
           icon={<SettingsIcon />} 
           label="Settings" 
           iconPosition="start"
-          sx={{ minWidth: 100 }}
+          sx={{ minWidth: 80 }}
         />
       </Tabs>
 
@@ -78,10 +86,15 @@ export default function ClaudeTabs() {
         </TabPanel>
         <TabPanel value={tabValue} index={1}>
           <Box sx={{ height: '100%', overflow: 'auto' }}>
-            <PlaylistGenerator />
+            <GameInfo />
           </Box>
         </TabPanel>
         <TabPanel value={tabValue} index={2}>
+          <Box sx={{ height: '100%', overflow: 'auto' }}>
+            <PlaylistGenerator />
+          </Box>
+        </TabPanel>
+        <TabPanel value={tabValue} index={3}>
           <Box sx={{ height: '100%', overflow: 'auto' }}>
             <ClaudeSettings />
           </Box>

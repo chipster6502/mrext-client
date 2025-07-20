@@ -216,4 +216,8 @@ export interface PlaylistGame {
   name: string;
   path: string;
   system: string;
+  description?: string;
+  reason?: string;
+  generated_at?: string;
+  theme?: string;
 }

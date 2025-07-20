@@ -13,7 +13,17 @@ import {
   ListInisPayload,
   SysInfoResponse,
   PeersResponse,
-  ScriptsResponse, MenuItem,
+  ScriptsResponse,
+  MenuItem,
+  // ========== CLAUDE AI TYPES ==========
+  ChatRequest,
+  ChatResponse,
+  ClaudeStatus,
+  SuggestionsResponse,
+  PlaylistRequest,
+  PlaylistResponse,
+  PlaylistGame,
+  GameContext,
 } from "./models";
 
 const API_ENDPOINT_KEY = "apiEndpoint";
@@ -320,5 +330,28 @@ export class ControlApi {
 
   async updateClaudeConfig(config: Partial<ClaudeStatus>): Promise<void> {
     await axios.put(`/claude/config`, config);
+  }
+
+  async generatePlaylist(request: PlaylistRequest): Promise<PlaylistResponse> {
+    return (await axios.post<PlaylistResponse>(`/claude/playlist`, request)).data;
+  }
+
+  async exportPlaylist(
+    games: PlaylistGame[], 
+    theme: string, 
+    format: 'txt' | 'm3u' | 'json'
+  ): Promise<Blob> {
+    const response = await axios.post(`/claude/export?format=${format}`, {
+      games,
+      theme
+    }, {
+      responseType: 'blob'
+    });
+    
+    return response.data;
+  }
+
+  async clearClaudeCache(): Promise<void> {
+    await axios.post(`/claude/cache/clear`);
   }
 }
