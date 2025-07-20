@@ -225,7 +225,7 @@ export default function ClaudeChat() {
                   variant="outlined"
                   size="small"
                   sx={{ cursor: 'pointer', mb: 1 }}
-                  disabled={loading || (status && !status.enabled)}
+                  disabled={loading || !!(status && !status.enabled)}
                 />
               ))}
             </Stack>
@@ -341,7 +341,7 @@ export default function ClaudeChat() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={loading || (status && !status.enabled)}
+            disabled={loading || !!(status && !status.enabled)}
             variant="outlined"
             size="small"
           />
@@ -349,7 +349,7 @@ export default function ClaudeChat() {
             variant="contained"
             startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
             onClick={() => sendMessage()}
-            disabled={loading || !message.trim() || (status && !status.enabled)}
+            disabled={loading || !message.trim() || !!(status && !status.enabled)}
             sx={{ minWidth: 'auto', px: 2 }}
           >
             Send

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -20,7 +20,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Skeleton
 } from '@mui/material';
 import {
   PlayArrow as PlayIcon,
@@ -34,23 +35,6 @@ import {
 import { ControlApi } from '../../lib/api';
 
 const api = new ControlApi();
-
-// ✅ Available gaming systems
-const AVAILABLE_SYSTEMS = [
-  'NES', 'SNES', 'Genesis', 'SMS', 'GG', 'GBA', 'GB', 'GBC', 
-  'PSX', 'N64', 'PCE', 'Atari2600', 'Atari5200', 'Atari7800',
-  'ColecoVision', 'Intellivision', 'C64', 'Amiga'
-];
-
-// ✅ System presets for quick selection
-const SYSTEM_PRESETS = [
-  { name: 'Nintendo Classics', systems: ['NES', 'SNES', 'GBA'], icon: '🎮' },
-  { name: 'Sega Collection', systems: ['Genesis', 'SMS', 'GG'], icon: '🦔' },
-  { name: '16-bit Era', systems: ['SNES', 'Genesis'], icon: '🕹️' },
-  { name: 'Handhelds', systems: ['GB', 'GBC', 'GBA'], icon: '📱' },
-  { name: 'Early Consoles', systems: ['NES', 'SMS', 'Atari2600'], icon: '👾' },
-  { name: 'Popular 5', systems: ['NES', 'SNES', 'Genesis', 'GBA', 'PSX'], icon: '⭐' }
-];
 
 // ✅ Theme suggestions
 const THEME_SUGGESTIONS = [
@@ -67,7 +51,7 @@ const THEME_SUGGESTIONS = [
 // ✅ Enhanced interfaces
 interface PlaylistRequest {
   theme: string;
-  max_games?: number;
+  game_count?: number;  // ✅ Corregido: era max_games
   systems?: string[];
 }
 
@@ -88,15 +72,96 @@ interface PlaylistGame {
   theme?: string;
 }
 
+interface AvailableSystem {
+  id: string;
+  name: string;
+}
+
 export default function PlaylistGenerator() {
   const [theme, setTheme] = useState('');
   const [maxGames, setMaxGames] = useState(8);
-  const [selectedSystems, setSelectedSystems] = useState<string[]>(['NES', 'SNES', 'Genesis']); // Popular default
+  const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [playlist, setPlaylist] = useState<PlaylistGame[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastTheme, setLastTheme] = useState<string>('');
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
+  
+  // ✅ NUEVO: Estados para sistemas dinámicos
+  const [availableSystems, setAvailableSystems] = useState<AvailableSystem[]>([]);
+  const [systemsLoading, setSystemsLoading] = useState(true);
+  const [systemsError, setSystemsError] = useState<string | null>(null);
+
+  // ✅ NUEVO: Cargar sistemas disponibles al montar componente
+  useEffect(() => {
+    loadAvailableSystems();
+  }, []);
+
+  const loadAvailableSystems = async () => {
+    try {
+      setSystemsLoading(true);
+      setSystemsError(null);
+      
+      const indexedSystems = await api.indexedSystems();
+      
+      setAvailableSystems(indexedSystems.systems);
+      
+      // ✅ Seleccionar automáticamente algunos sistemas populares si están disponibles
+      const popularSystems = ['NES', 'SNES', 'Genesis', 'GBA', 'SMS'];
+      const availablePopularSystems = indexedSystems.systems
+        .filter(sys => popularSystems.includes(sys.id))
+        .map(sys => sys.id)
+        .slice(0, 3); // Máximo 3 sistemas por defecto
+      
+      setSelectedSystems(availablePopularSystems);
+    } catch (error) {
+      console.error('Error loading available systems:', error);
+      setSystemsError('Error loading systems. Verify that games are indexed.');
+    } finally {
+      setSystemsLoading(false);
+    }
+  };
+
+  // ✅ NUEVO: Generar presets dinámicos basados en sistemas disponibles
+  const generateSystemPresets = () => {
+    const availableSystemIds = availableSystems.map(s => s.id);
+    
+    const presets = [
+      { 
+        name: 'Nintendo Classics', 
+        systems: ['NES', 'SNES', 'GBA'].filter(s => availableSystemIds.includes(s)), 
+        icon: '🎮' 
+      },
+      { 
+        name: 'Sega Collection', 
+        systems: ['Genesis', 'SMS', 'GG'].filter(s => availableSystemIds.includes(s)), 
+        icon: '🦔' 
+      },
+      { 
+        name: '16-bit Era', 
+        systems: ['SNES', 'Genesis'].filter(s => availableSystemIds.includes(s)), 
+        icon: '🕹️' 
+      },
+      { 
+        name: 'Handhelds', 
+        systems: ['GB', 'GBC', 'GBA'].filter(s => availableSystemIds.includes(s)), 
+        icon: '📱' 
+      },
+      { 
+        name: 'Early Consoles', 
+        systems: ['NES', 'SMS', 'Atari2600'].filter(s => availableSystemIds.includes(s)), 
+        icon: '👾' 
+      },
+      { 
+        name: 'Popular 5', 
+        systems: ['NES', 'SNES', 'Genesis', 'GBA', 'PSX'].filter(s => availableSystemIds.includes(s)), 
+        icon: '⭐' 
+      }
+    ];
+    
+    // Solo devolver presets que tengan al menos un sistema disponible
+    return presets.filter(preset => preset.systems.length > 0);
+  };
 
   // Generate AI playlist based on theme
   const generatePlaylist = async (playlistTheme: string) => {
@@ -109,7 +174,7 @@ export default function PlaylistGenerator() {
     try {
       const request: PlaylistRequest = {
         theme: playlistTheme.trim(),
-        max_games: maxGames,
+        game_count: maxGames,  // ✅ Corregido: era max_games
         systems: selectedSystems
       };
 
@@ -149,7 +214,7 @@ export default function PlaylistGenerator() {
     );
   };
 
-  const handlePresetSelect = (preset: typeof SYSTEM_PRESETS[0]) => {
+  const handlePresetSelect = (preset: any) => {
     setSelectedSystems(preset.systems);
   };
 
@@ -168,28 +233,9 @@ export default function PlaylistGenerator() {
 
   const exportPlaylist = async (format: 'txt' | 'm3u' | 'json') => {
     try {
-      const response = await fetch('/api/claude/export', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          games: playlist,
-          theme: lastTheme
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      // Get filename from response headers
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-      const filename = filenameMatch ? filenameMatch[1] : `playlist_${lastTheme}.${format}`;
-
-      // Download file
-      const blob = await response.blob();
+      const blob = await api.exportPlaylist(playlist, lastTheme, format);
+      
+      const filename = `playlist_${lastTheme.replace(/[^a-zA-Z0-9]/g, '_')}.${format}`;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -228,75 +274,115 @@ export default function PlaylistGenerator() {
         </Typography>
       </Paper>
 
-      {/* Input section */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Stack spacing={3}>
-          {/* Theme input */}
+      {/* Error de sistemas */}
+      {systemsError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {systemsError}
+          <Button 
+            size="small" 
+            onClick={loadAvailableSystems}
+            sx={{ ml: 1 }}
+          >
+            Retry
+          </Button>
+        </Alert>
+      )}
+
+      {/* Main Form */}
+      <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        {/* Theme Input */}
+        <Box sx={{ mb: 3 }}>
           <TextField
             fullWidth
-            label="Describe the type of games you want"
-            placeholder="Ex: Challenging 80s platformers with great music"
+            label="Describe your ideal playlist theme"
+            placeholder="e.g., 'Classic platformer games', 'Hidden gems and underrated titles'"
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={loading}
+            disabled={loading || systemsLoading}
             variant="outlined"
+            sx={{ mb: 2 }}
           />
 
-          {/* System selection */}
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              🎯 Select Systems (fewer = faster generation):
-              <Button 
-                size="small" 
-                onClick={clearSelectedSystems}
-                disabled={loading || selectedSystems.length === 0}
-                startIcon={<ClearIcon />}
-                variant="text"
-                sx={{ ml: 'auto' }}
-              >
-                Clear All
-              </Button>
-            </Typography>
-            
-            {/* System presets */}
+          {/* Theme Suggestions */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {THEME_SUGGESTIONS.map((suggestion, index) => (
+              <Chip
+                key={index}
+                label={suggestion}
+                onClick={() => handleSuggestionClick(suggestion)}
+                disabled={loading || systemsLoading}
+                variant="outlined"
+                size="small"
+                icon={<IdeaIcon />}
+                sx={{ '&:hover': { bgcolor: 'primary.light', color: 'white' } }}
+              />
+            ))}
+          </Box>
+        </Box>
+
+        {/* System Selection */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Select Systems ({selectedSystems.length} selected)
+          </Typography>
+
+          {/* System Presets */}
+          {!systemsLoading && availableSystems.length > 0 && (
             <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                Quick presets:
-              </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                {SYSTEM_PRESETS.map((preset) => (
+              <Typography variant="subtitle2" gutterBottom>Quick Presets:</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                {generateSystemPresets().map((preset, index) => (
                   <Chip
-                    key={preset.name}
+                    key={index}
                     label={`${preset.icon} ${preset.name}`}
+                    onClick={() => handlePresetSelect(preset)}
                     variant="outlined"
                     size="small"
-                    onClick={() => handlePresetSelect(preset)}
                     disabled={loading}
-                    sx={{ cursor: 'pointer' }}
                   />
                 ))}
-              </Stack>
-            </Box>
-
-            {/* Individual systems */}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {AVAILABLE_SYSTEMS.map((system) => (
                 <Chip
-                  key={system}
-                  label={system}
-                  clickable
-                  variant={selectedSystems.includes(system) ? 'filled' : 'outlined'}
-                  color={selectedSystems.includes(system) ? 'primary' : 'default'}
-                  onClick={() => handleSystemToggle(system)}
-                  disabled={loading}
+                  label="Clear All"
+                  onClick={clearSelectedSystems}
+                  variant="outlined"
                   size="small"
+                  disabled={loading}
+                  icon={<ClearIcon />}
                 />
-              ))}
+              </Box>
             </Box>
+          )}
+
+          {/* Individual Systems */}
+          <Box sx={{ mb: 2 }}>
+            {systemsLoading ? (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {[...Array(8)].map((_, i) => (
+                  <Skeleton key={i} variant="rectangular" width={80} height={32} />
+                ))}
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {availableSystems.map((system) => (
+                  <Chip
+                    key={system.id}
+                    label={system.name}
+                    variant={selectedSystems.includes(system.id) ? 'filled' : 'outlined'}
+                    color={selectedSystems.includes(system.id) ? 'primary' : 'default'}
+                    onClick={() => handleSystemToggle(system.id)}
+                    disabled={loading}
+                    size="small"
+                  />
+                ))}
+              </Box>
+            )}
             
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Selected: {selectedSystems.length} systems • Recommended: 3-5 systems for best results
+              {availableSystems.length > 0 
+                ? `${availableSystems.length} systems with games • Selected: ${selectedSystems.length} • Recommended: 3-5 systems for best balance`
+                : 'Loading available systems...'
+              }
             </Typography>
           </Box>
 
@@ -307,7 +393,7 @@ export default function PlaylistGenerator() {
               type="number"
               value={maxGames}
               onChange={(e) => setMaxGames(Math.max(1, Math.min(15, parseInt(e.target.value) || 8)))}
-              disabled={loading}
+              disabled={loading || systemsLoading}
               size="small"
               sx={{ width: 150 }}
               inputProps={{ min: 1, max: 15 }}
@@ -316,96 +402,70 @@ export default function PlaylistGenerator() {
             <Button
               variant="contained"
               onClick={() => generatePlaylist(theme)}
-              disabled={loading || !theme.trim() || selectedSystems.length === 0}
+              disabled={loading || systemsLoading || !theme.trim() || selectedSystems.length === 0}
               startIcon={loading ? <CircularProgress size={20} /> : <RandomIcon />}
             >
               {loading ? 'Generating...' : 'Generate Playlist'}
             </Button>
 
-            {playlist.length > 0 && !loading && (
-              <>
-                <Button
-                  variant="outlined"
-                  onClick={() => generatePlaylist(lastTheme)}
-                  startIcon={<RefreshIcon />}
-                >
-                  Regenerate
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  onClick={handleExportClick}
-                  startIcon={<DownloadIcon />}
-                  color="success"
-                >
-                  Export
-                </Button>
-              </>
+            {playlist.length > 0 && (
+              <Button
+                variant="outlined"
+                onClick={handleExportClick}
+                startIcon={<DownloadIcon />}
+                disabled={loading}
+              >
+                Export
+              </Button>
             )}
           </Box>
-        </Stack>
+        </Box>
       </Paper>
 
-      {/* Theme suggestions */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IdeaIcon fontSize="small" />
-          Theme ideas:
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-          {THEME_SUGGESTIONS.map((suggestion, index) => (
-            <Chip
-              key={index}
-              label={suggestion}
-              onClick={() => handleSuggestionClick(suggestion)}
-              variant="outlined"
-              size="small"
-              sx={{ cursor: 'pointer', mb: 1 }}
-              disabled={loading}
-            />
-          ))}
-        </Stack>
-      </Box>
-
-      {/* Error display */}
+      {/* Error Display */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* Generated playlist */}
+      {/* Results */}
       {playlist.length > 0 && (
-        <Paper elevation={1} sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                🎵 Generated Playlist: "{lastTheme}"
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {playlist.length} games selected by Claude AI from {selectedSystems.join(', ')}
-              </Typography>
+        <Paper elevation={1} sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <RandomIcon />
+            Generated Playlist: "{lastTheme}" ({playlist.length} games)
+          </Typography>
+
+          {/* System Distribution Summary */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>System Distribution:</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {Object.entries(
+                playlist.reduce((acc, game) => {
+                  acc[game.system] = (acc[game.system] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)
+              ).map(([system, count]) => (
+                <Chip 
+                  key={system} 
+                  label={`${system}: ${count}`} 
+                  size="small" 
+                  variant="outlined"
+                />
+              ))}
             </Box>
-            
-            <Button
-              variant="outlined"
-              onClick={handleExportClick}
-              startIcon={<DownloadIcon />}
-              size="small"
-            >
-              Export
-            </Button>
           </Box>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider sx={{ mb: 2 }} />
 
-          <List dense>
+          <List>
             {playlist.map((game, index) => (
-              <ListItem key={index} divider={index < playlist.length - 1} sx={{ py: 1 }}>
+              <ListItem key={index} divider={index < playlist.length - 1}>
                 <ListItemText
                   primary={
-                    <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                      {index + 1}. {game.name}
+                    <Typography variant="subtitle1" component="span">
+                      {game.name}
                     </Typography>
                   }
                   secondary={
@@ -461,56 +521,20 @@ export default function PlaylistGenerator() {
         </Paper>
       )}
 
-      {/* Loading state */}
-      {loading && playlist.length === 0 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <Stack alignItems="center" spacing={2}>
-            <CircularProgress size={40} />
-            <Typography variant="body2" color="text.secondary">
-              Claude is analyzing your {selectedSystems.join(', ')} collection...
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Scanning ~{selectedSystems.length * 100} games • This should take 5-10 seconds
-            </Typography>
-          </Stack>
-        </Box>
-      )}
-
-      {/* Empty state */}
-      {!loading && playlist.length === 0 && !error && (
-        <Paper 
-          elevation={1} 
-          sx={{ 
-            p: 4, 
-            textAlign: 'center', 
-            backgroundColor: theme => theme.palette.action.hover 
-          }}
-        >
-          <RandomIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h6" gutterBottom>
-            AI-Powered Game Discovery
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Describe any gaming theme, mood, or style and Claude will curate a personalized 
-            playlist from your selected systems.
-          </Typography>
-        </Paper>
-      )}
-
-      {/* Export menu */}
+      {/* Export Menu */}
       <Menu
         anchorEl={exportMenuAnchor}
         open={Boolean(exportMenuAnchor)}
         onClose={handleExportClose}
       >
         <MenuItem onClick={() => exportPlaylist('txt')}>
-          📄 Text File (.txt)
+          Text File (.txt)
         </MenuItem>
         <MenuItem onClick={() => exportPlaylist('m3u')}>
-          🎵 Playlist File (.m3u)
+          Playlist (.m3u)
         </MenuItem>
         <MenuItem onClick={() => exportPlaylist('json')}>
-          🔧 JSON Data (.json)
+          JSON Data (.json)
         </MenuItem>
       </Menu>
     </Box>
