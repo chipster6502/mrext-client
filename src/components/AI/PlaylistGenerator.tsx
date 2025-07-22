@@ -30,20 +30,21 @@ import {
   Refresh as RefreshIcon,
   Download as DownloadIcon,
   MoreVert as MoreIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Gamepad as GamepadIcon
 } from '@mui/icons-material';
 import { ControlApi } from '../../lib/api';
 
 const api = new ControlApi();
 
-// ✅ Theme suggestions
-const THEME_SUGGESTIONS = [
+// Static theme suggestions for general use
+const STATIC_THEME_SUGGESTIONS = [
   "Classic platformer games",
-  "Fast-paced action games",
-  "Puzzle and brain teasers", 
+  "Fast-paced action games", 
+  "Puzzle and brain teasers",
   "2-player cooperative games",
   "Retro arcade classics",
-  "Epic RPG adventures",
+  "Epic RPG adventures", 
   "Racing and driving games",
   "Hidden gems and underrated titles"
 ];
@@ -76,6 +77,10 @@ interface AvailableSystem {
   id: string;
   name: string;
 }
+interface ActiveGameSuggestionResponse {
+  suggestion: string;
+  timestamp: string;
+}
 
 export default function PlaylistGenerator() {
   const [theme, setTheme] = useState('');
@@ -87,14 +92,19 @@ export default function PlaylistGenerator() {
   const [lastTheme, setLastTheme] = useState<string>('');
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   
-  // ✅ NEW: Dynamic systems states
+  // Dynamic systems states
   const [availableSystems, setAvailableSystems] = useState<AvailableSystem[]>([]);
   const [systemsLoading, setSystemsLoading] = useState(true);
   const [systemsError, setSystemsError] = useState<string | null>(null);
 
+  // Active game suggestion state  
+  const [activeGameSuggestion, setActiveGameSuggestion] = useState<string>('');
+  const [activeGameSuggestionLoading, setActiveGameSuggestionLoading] = useState(false);
+
   // ✅ NEW: Load available systems on component mount
   useEffect(() => {
     loadAvailableSystems();
+    loadActiveGameSuggestion();
   }, []);
 
   const loadAvailableSystems = async () => {
@@ -107,7 +117,7 @@ export default function PlaylistGenerator() {
       setAvailableSystems(indexedSystems.systems);
       
       // ✅ Automatically select some popular systems if available
-      const popularSystems = ['NES', 'SNES', 'Genesis', 'GBA', 'SMS'];
+      const popularSystems = ['Arcade', 'NES', 'SNES', 'Genesis', 'GBA'];
       const availablePopularSystems = indexedSystems.systems
         .filter(sys => popularSystems.includes(sys.id))
         .map(sys => sys.id)
@@ -120,6 +130,48 @@ export default function PlaylistGenerator() {
     } finally {
       setSystemsLoading(false);
     }
+  };
+
+  // Load dynamic active game suggestion
+  const loadActiveGameSuggestion = async () => {
+    try {
+      setActiveGameSuggestionLoading(true);
+      const response = await fetch('/api/claude/active-game-suggestion');
+      
+      if (response.ok) {
+        const data: ActiveGameSuggestionResponse = await response.json();
+        setActiveGameSuggestion(data.suggestion);
+      } else {
+        // Fallback if no active game or service unavailable
+        setActiveGameSuggestion('Similar games to active game');
+      }
+    } catch (error) {
+      console.error('Error loading active game suggestion:', error);
+      // Fallback suggestion
+      setActiveGameSuggestion('Similar games to active game');
+    } finally {
+      setActiveGameSuggestionLoading(false);
+    }
+  };
+
+  // Refresh active game suggestion
+  const refreshActiveGameSuggestion = async () => {
+    await loadActiveGameSuggestion();
+  };
+
+  // Get all theme suggestions (static + dynamic active game suggestion)
+  const getAllThemeSuggestions = () => {
+    const suggestions = [...STATIC_THEME_SUGGESTIONS];
+    
+    // Add active game suggestion at the beginning if available
+    if (activeGameSuggestion && activeGameSuggestion !== 'Similar games to active game') {
+      suggestions.unshift(activeGameSuggestion);
+    } else if (activeGameSuggestion) {
+      // Add generic active game suggestion
+      suggestions.unshift(activeGameSuggestion);
+    }
+    
+    return suggestions;
   };
 
   // ✅ NEW: Generate dynamic presets based on available systems
@@ -138,6 +190,11 @@ export default function PlaylistGenerator() {
         icon: '🦔' 
       },
       { 
+        name: 'Arcade Classics', // ✅ NEW: Dedicated arcade preset
+        systems: ['Arcade'].filter(s => availableSystemIds.includes(s)), 
+        icon: '🎰' 
+      },
+      { 
         name: '16-bit Era', 
         systems: ['SNES', 'Genesis'].filter(s => availableSystemIds.includes(s)), 
         icon: '🕹️' 
@@ -153,8 +210,8 @@ export default function PlaylistGenerator() {
         icon: '👾' 
       },
       { 
-        name: 'Popular 5', 
-        systems: ['NES', 'SNES', 'Genesis', 'GBA', 'PSX'].filter(s => availableSystemIds.includes(s)), 
+        name: 'Popular 6', // ✅ UPDATED: From Popular 5 to Popular 6 with Arcade
+        systems: ['Arcade', 'NES', 'SNES', 'Genesis', 'GBA', 'PSX'].filter(s => availableSystemIds.includes(s)), 
         icon: '⭐' 
       }
     ];
@@ -306,7 +363,7 @@ export default function PlaylistGenerator() {
 
           {/* Theme Suggestions */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {THEME_SUGGESTIONS.map((suggestion, index) => (
+            {getAllThemeSuggestions().map((suggestion, index) => (
               <Chip
                 key={index}
                 label={suggestion}
@@ -314,13 +371,42 @@ export default function PlaylistGenerator() {
                 disabled={loading || systemsLoading}
                 variant="outlined"
                 size="small"
-                icon={<IdeaIcon />}
-                sx={{ '&:hover': { bgcolor: 'primary.light', color: 'white' } }}
+                icon={
+                  index === 0 && suggestion.includes('similar to') 
+                    ? <GamepadIcon /> 
+                    : <IdeaIcon />
+                }
+                sx={{
+                  cursor: 'pointer',
+                  '&:hover': { 
+                    bgcolor: 'primary.light', 
+                    color: 'white' 
+                  },
+                  ...(index === 0 && suggestion.includes('similar to') && {
+                    borderColor: 'primary.main',
+                    color: 'primary.main'
+                  })
+                }}
               />
             ))}
           </Box>
         </Box>
-
+        {/* Refresh button for active game suggestion */}
+        {activeGameSuggestion && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Active game suggestion updates automatically
+            </Typography>
+            <IconButton 
+              size="small" 
+              onClick={refreshActiveGameSuggestion}
+              disabled={activeGameSuggestionLoading}
+              title="Refresh active game suggestion"
+            >
+              {activeGameSuggestionLoading ? <CircularProgress size={16} /> : <RefreshIcon />}
+            </IconButton>
+          </Box>
+        )}
         {/* System Selection */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
@@ -398,6 +484,24 @@ export default function PlaylistGenerator() {
               sx={{ width: 150 }}
               inputProps={{ min: 1, max: 15 }}
             />
+
+            <Button
+          variant="outlined"
+          color="secondary"
+          onClick={async () => {
+            try {
+              const response = await fetch('/api/claude/debug-active-game');
+              const data = await response.json();
+              console.log('=== ARCADE DEBUG INFO ===', data);
+              alert('Debug info logged to console. Check browser dev tools.');
+            } catch (error) {
+              console.error('Debug error:', error);
+            }
+          }}
+          sx={{ mr: 1 }}
+        >
+          🔍 Debug Active Game
+        </Button>
 
             <Button
               variant="contained"
