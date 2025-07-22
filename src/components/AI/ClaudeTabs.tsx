@@ -22,9 +22,15 @@ function TabPanel({ children, value, index }: TabPanelProps) {
     <div 
       role="tabpanel"
       hidden={value !== index}
-      style={{ height: value === index ? '100%' : 0, overflow: 'hidden' }}
+      style={{ 
+        height: value === index ? '100%' : 0, 
+        overflow: value === index ? 'visible' : 'hidden',
+        position: value === index ? 'relative' : 'absolute',
+        width: '100%'
+      }}
     >
-      {value === index && children}
+      {/* ✅ SOLUCION: Siempre renderizar children, solo ocultar visualmente */}
+      {children}
     </div>
   );
 }
@@ -80,7 +86,7 @@ export default function ClaudeTabs() {
       </Tabs>
 
       {/* Tab content */}
-      <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+      <Box sx={{ flexGrow: 1, overflow: 'hidden', position: 'relative' }}>
         <TabPanel value={tabValue} index={0}>
           <ClaudeChat />
         </TabPanel>

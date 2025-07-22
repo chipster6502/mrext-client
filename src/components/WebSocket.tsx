@@ -24,10 +24,24 @@ function handleMessage(event: MessageEvent, serverState: ServerState) {
       }
       break;
     case "gameRunning":
-      serverState.setActiveGame(data);
+      // ✅ SOLUCIÓN: Solo actualizar si los datos realmente cambiaron
+      const currentGame = serverState.activeGame;
+      if (data !== currentGame) {
+        console.log(`🔄 Game changed: "${currentGame}" → "${data}"`);
+        serverState.setActiveGame(data);
+      } else {
+        console.log(`⏸️ Game unchanged: "${data}"`);
+      }
       break;
     case "coreRunning":
-      serverState.setActiveCore(data);
+      // ✅ SOLUCIÓN: Solo actualizar si los datos realmente cambiaron
+      const currentCore = serverState.activeCore;
+      if (data !== currentCore) {
+        console.log(`🔄 Core changed: "${currentCore}" → "${data}"`);
+        serverState.setActiveCore(data);
+      } else {
+        console.log(`⏸️ Core unchanged: "${data}"`);
+      }
       break;
   }
 }
