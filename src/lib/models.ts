@@ -221,3 +221,11 @@ export interface PlaylistGame {
   generated_at?: string;
   theme?: string;
 }
+
+export interface PlayingGame {
+  core: string;
+  system: string;
+  systemName: string;
+  game: string;
+  gameName: string;
+}

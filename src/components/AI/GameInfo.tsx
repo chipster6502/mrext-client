@@ -1,31 +1,21 @@
-// src/components/AI/GameInfo.tsx - Simplified version with semantic validation
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Paper,
   Typography,
-  Stack,
-  Divider,
+  Chip,
   CircularProgress,
   Alert,
-  useTheme
-} from '@mui/material';
-import {
-  VideogameAsset as GameIcon,
-  Lightbulb as TipIcon,
-  History as HistoryIcon,
-  EmojiEvents as AchievementIcon,
-  Info as InfoIcon
-} from '@mui/icons-material';
-import { ControlApi } from '../../lib/api';
-import { ChatRequest, ChatResponse } from '../../lib/models';
-import { useServerStateStore } from '../../lib/store';
+  Skeleton,
+  useTheme,
+} from "@mui/material";
+import GamepadIcon from "@mui/icons-material/Gamepad";
+import { useServerStateStore } from "../../lib/store";
+import { ControlApi } from "../../lib/api";
+import { PlayingGame } from "../../lib/models"; // Make sure to add this interface
 
-const api = new ControlApi();
-
-// Helper function to remove file extension
-const removeFileExtension = (filename: string) => {
+// Remove file extension from filename
+const removeFileExtension = (filename: string): string => {
   const parts = filename.split('.');
   if (parts.length > 1) {
     return parts.slice(0, -1).join('.');
@@ -33,154 +23,185 @@ const removeFileExtension = (filename: string) => {
   return filename;
 };
 
+interface GameInfoState {
+  tips: string[];
+  trivia: string[];
+  technical: string[];
+  records: string[];
+  loading: boolean;
+  error: string | null;
+  lastGame: string;
+  playingData: PlayingGame | null; // Store HTTP endpoint data
+}
+
 export default function GameInfo() {
   const theme = useTheme();
   const serverState = useServerStateStore();
+  const api = new ControlApi();
   
-  const [gameInfo, setGameInfo] = useState({
+  const [gameInfo, setGameInfo] = useState<GameInfoState>({
     tips: [],
     trivia: [],
     technical: [],
     records: [],
     loading: false,
     error: null,
-    lastGame: ''
+    lastGame: '',
+    playingData: null
   });
 
-  // ✅ SIMPLE & EFFECTIVE: React only to server state changes with delay
+  // Function to fetch current playing game data from HTTP endpoint
+  const fetchPlayingData = async (): Promise<PlayingGame | null> => {
+    try {
+      const data = await api.getPlayingGame();
+      console.log('🌐 GameInfo: HTTP endpoint data:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ GameInfo: Failed to fetch playing data:', error);
+      return null;
+    }
+  };
+
+  // Function to determine display context from HTTP data
+  const getGameContextFromHttp = (data: PlayingGame): string => {
+    if (!data.core || data.core === 'None') {
+      return '';
+    }
+
+    // If we have a specific game name, use it
+    if (data.gameName && data.gameName.trim() !== '') {
+      return data.gameName;
+    }
+
+    // If we have a game path, extract filename
+    if (data.game && data.game.trim() !== '') {
+      const filename = data.game.split('/').pop() || '';
+      if (filename) {
+        return removeFileExtension(filename);
+      }
+    }
+
+    // Fallback to system name
+    return data.systemName || data.core;
+  };
+
+  // Function to create a unique state ID from HTTP data
+  const createStateId = (data: PlayingGame | null): string => {
+    if (!data || !data.core || data.core === 'None') {
+      return 'no-core';
+    }
+    
+    return `${data.core}-${data.gameName || data.game || 'system'}`;
+  };
+
+  // Main effect that triggers when WebSocket state changes
   useEffect(() => {
-    const currentState = () => {
-      if (!serverState.activeCore || serverState.activeCore === 'None') {
-        return 'no-core';
+    const checkAndLoadGameInfo = async () => {
+      // Get fresh data from HTTP endpoint
+      const playingData = await fetchPlayingData();
+      const currentStateId = createStateId(playingData);
+      
+      console.log('🔥 GameInfo: State evaluation:', {
+        currentStateId,
+        lastGame: gameInfo.lastGame,
+        playingData
+      });
+      
+      // Update playing data in state
+      setGameInfo(prev => ({ ...prev, playingData }));
+      
+      // Load info if state changed AND we have an active core
+      if (currentStateId !== gameInfo.lastGame && 
+          playingData && 
+          playingData.core && 
+          playingData.core !== 'None') {
+        console.log(`🔄 GameInfo: State changed: ${gameInfo.lastGame} → ${currentStateId}`);
+        
+        // Add delay to let data settle
+        setTimeout(() => {
+          loadGameInfo(currentStateId, playingData);
+        }, 500);
       }
       
-      const gameStateType = serverState.getGameStateType();
-      return `${gameStateType}-${serverState.activeCore}-${serverState.activeGame}`;
+      // Clear info if no core
+      if ((!playingData || !playingData.core || playingData.core === 'None') && 
+          gameInfo.lastGame !== 'no-core') {
+        console.log('🧹 GameInfo: Clearing game info (no active core)');
+        clearGameInfo();
+      }
     };
-    
-    const currentStateId = currentState();
-    
-    console.log('🔥 GameInfo: Server state changed, evaluating:', {
-      currentStateId,
-      lastGame: gameInfo.lastGame,
-      activeCore: serverState.activeCore,
-      activeGame: serverState.activeGame
-    });
-    
-    // Load info if state changed AND we have an active core
-    if (currentStateId !== gameInfo.lastGame && 
-        serverState.activeCore && 
-        serverState.activeCore !== 'None') {
-      console.log(`🔄 GameInfo: State changed: ${gameInfo.lastGame} → ${currentStateId}`);
-      
-      // ✅ KEY: Add delay to let WebSocket data settle
-      const timeoutId = setTimeout(() => {
-        loadGameInfo(currentStateId);
-      }, 500); // 500ms delay to let MiSTer update activeGame
-      
-      return () => clearTimeout(timeoutId);
-    }
-    
-    // Clear info if no core
-    if ((!serverState.activeCore || serverState.activeCore === 'None') && 
-        gameInfo.lastGame !== 'no-core') {
-      console.log('🧹 GameInfo: Clearing game info (no active core)');
-      clearGameInfo();
-    }
-  }, [serverState.activeCore, serverState.activeGame]);
 
-  // ✅ Function to determine what to show and load
-  const loadGameInfo = async (stateId: string) => {
-    const gameStateType = serverState.getGameStateType();
-    const core = serverState.activeCore;
-    const game = serverState.activeGame;
-    
-    console.log('🤖 GameInfo: loadGameInfo called:', { gameStateType, core, game, stateId });
+    checkAndLoadGameInfo();
+  }, [serverState.activeCore, serverState.activeGame]); // Still trigger on WebSocket changes
+
+  // Function to load game information using HTTP data
+  const loadGameInfo = async (stateId: string, playingData: PlayingGame) => {
+    console.log('🤖 GameInfo: loadGameInfo called with HTTP data:', playingData);
     
     setGameInfo(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      let gameContext: string;
+      const gameContext = getGameContextFromHttp(playingData);
       
-      switch (gameStateType) {
-        case 'arcade':
-          gameContext = core;
-          break;
-        case 'game':
-          gameContext = game;
-          break;
-        case 'system':
-        case 'none':
-        default:
-          gameContext = `${core} system`;
-          break;
+      if (!gameContext) {
+        throw new Error('No game context available');
       }
 
-      console.log('📝 GameInfo: Loading context:', gameContext);
+      console.log('📝 GameInfo: Loading context from HTTP data:', gameContext);
 
-      const prompt = `Provide interesting information about ${gameContext}. Format your response with these sections:
+      const prompt = `Provide interesting information about ${gameContext}.
 
-TIPS:
-- (3-4 gameplay tips or strategies)
+Please respond with exactly 4 sections in JSON format:
+{
+  "tips": ["tip1", "tip2", "tip3"],
+  "trivia": ["fact1", "fact2", "fact3"], 
+  "technical": ["tech1", "tech2", "tech3"],
+  "records": ["record1", "record2", "record3"]
+}
 
-TRIVIA:
-- (3-4 interesting facts or historical context)
+Each section should have exactly 3 items. Keep each item concise (1-2 sentences).
 
-TECHNICAL:
-- (2-3 technical details about graphics, sound, or development)
+Tips: Gameplay advice, strategies, hidden features
+Trivia: Interesting facts, history, development stories  
+Technical: Hardware info, specifications, technical details
+Records: High scores, speedrun records, achievements`;
 
-RECORDS:
-- (2-3 famous records, speedruns, or achievements)
-
-Keep each point concise and engaging.`;
-
-      const request: ChatRequest = {
+      const chatResponse = await api.sendMessage({
         message: prompt,
         include_context: true,
-        session_id: `gameinfo_${Date.now()}`
-      };
+        session_id: 'gameinfo_' + Date.now()
+      });
 
-      const response = await api.sendClaudeMessage(request);
-      
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      // Parse response into sections
-      const sections = {
-        tips: [],
-        trivia: [],
-        technical: [],
-        records: []
-      };
-
-      const lines = response.content.split('\n');
-      let currentSection = '';
-
-      for (const line of lines) {
-        const cleanLine = line.trim();
-        if (cleanLine.startsWith('TIPS:')) {
-          currentSection = 'tips';
-        } else if (cleanLine.startsWith('TRIVIA:')) {
-          currentSection = 'trivia';
-        } else if (cleanLine.startsWith('TECHNICAL:')) {
-          currentSection = 'technical';
-        } else if (cleanLine.startsWith('RECORDS:')) {
-          currentSection = 'records';
-        } else if (cleanLine.startsWith('-') && currentSection) {
-          sections[currentSection].push(cleanLine.substring(1).trim());
+      // Parse Claude's response
+      let sections;
+      try {
+        const jsonMatch = chatResponse.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          sections = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON found in response');
         }
+      } catch (parseError) {
+        console.error('Failed to parse JSON, using fallback:', parseError);
+        sections = {
+          tips: [chatResponse.content.substring(0, 200) + '...'],
+          trivia: ['Unable to parse detailed information'],
+          technical: ['Response format error'],
+          records: ['Data unavailable']
+        };
       }
 
-      setGameInfo({
-        tips: sections.tips,
-        trivia: sections.trivia,
-        technical: sections.technical,
-        records: sections.records,
+      setGameInfo(prev => ({
+        ...prev,
+        tips: sections.tips || [],
+        trivia: sections.trivia || [],
+        technical: sections.technical || [],
+        records: sections.records || [],
         loading: false,
         error: null,
-        lastGame: stateId
-      });
+        lastGame: stateId,
+        playingData
+      }));
 
     } catch (error) {
       console.error('❌ GameInfo: Error loading info:', error);
@@ -188,7 +209,8 @@ Keep each point concise and engaging.`;
         ...prev, 
         loading: false, 
         error: error.message || 'Failed to load game information',
-        lastGame: stateId
+        lastGame: stateId,
+        playingData
       }));
     }
   };
@@ -202,54 +224,55 @@ Keep each point concise and engaging.`;
       records: [],
       loading: false,
       error: null,
-      lastGame: 'no-core'
+      lastGame: 'no-core',
+      playingData: null
     });
   };
 
-  // ✅ Function to get current display name
+  // Function to get current display name using HTTP data
   const getCurrentDisplayName = () => {
-    const gameStateType = serverState.getGameStateType();
-    const core = serverState.activeCore;
-    const game = serverState.activeGame;
+    const { playingData } = gameInfo;
 
-    console.log('🏷️ GameInfo: formatGameTitle debug:', {
-      activeCore: core,
-      activeGame: game,
-      gameStateType,
-      timestamp: new Date().toLocaleTimeString()
-    });
+    console.log('🏷️ GameInfo: getCurrentDisplayName with HTTP data:', playingData);
 
-    if (!core || core === 'None') {
+    if (!playingData || !playingData.core || playingData.core === 'None') {
       return 'No active game';
     }
     
-    // For arcade games, the core name IS the game name
-    if (gameStateType === 'arcade') {
-      return `${core} (Arcade)`;
+    // Use gameName if available (this includes SAM data!)
+    if (playingData.gameName && playingData.gameName.trim() !== '') {
+      return `${playingData.gameName} (${playingData.core})`;
     }
     
-    // For valid games, show game name + core
-    if (gameStateType === 'game') {
-      const filename = game.split('/').pop() || '';
-      const gameName = removeFileExtension(filename);
-      return `${gameName} (${core})`;
+    // Fallback to game path
+    if (playingData.game && playingData.game.trim() !== '') {
+      const filename = playingData.game.split('/').pop() || '';
+      if (filename) {
+        const gameName = removeFileExtension(filename);
+        return `${gameName} (${playingData.core})`;
+      }
     }
     
-    // For system or anything else, show just the system name
-    return `${core} System`;
+    // Fallback to system name
+    return `${playingData.systemName || playingData.core} System`;
   };
 
   return (
     <Box sx={{ p: 2 }}>
       <Paper elevation={2} sx={{ p: 2 }}>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <InfoIcon color="primary" />
-          {getCurrentDisplayName()}
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+          <GamepadIcon sx={{ mr: 1 }} />
+          Game Information
         </Typography>
         
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
+          {getCurrentDisplayName()}
+        </Typography>
+
         {gameInfo.loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-            <CircularProgress />
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <CircularProgress size={20} sx={{ mr: 1 }} />
+            <Typography variant="body2">Loading game information...</Typography>
           </Box>
         )}
 
@@ -259,83 +282,74 @@ Keep each point concise and engaging.`;
           </Alert>
         )}
 
-        {/* Tips Section */}
-        {gameInfo.tips.length > 0 && (
-          <>
-            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TipIcon color="primary" />
-              Tips & Strategies
-            </Typography>
-            <Stack spacing={1}>
-              {gameInfo.tips.map((tip, index) => (
-                <Typography key={index} variant="body2" sx={{ pl: 2 }}>
-                  • {tip}
-                </Typography>
-              ))}
-            </Stack>
-          </>
+        {!gameInfo.loading && !gameInfo.error && gameInfo.lastGame === 'no-core' && (
+          <Typography variant="body2" color="text.secondary">
+            No active game detected
+          </Typography>
         )}
 
-        {/* Trivia Section */}
-        {gameInfo.trivia.length > 0 && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle1" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <HistoryIcon color="primary" />
-              Trivia & History
-            </Typography>
-            <Stack spacing={1}>
-              {gameInfo.trivia.map((item, index) => (
-                <Typography key={index} variant="body2" sx={{ pl: 2 }}>
-                  • {item}
-                </Typography>
-              ))}
-            </Stack>
-          </>
+        {!gameInfo.loading && !gameInfo.error && gameInfo.lastGame !== 'no-core' && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Tips Section */}
+            {gameInfo.tips.length > 0 && (
+              <Box>
+                <Chip label="Tips & Strategies" size="small" color="primary" sx={{ mb: 1 }} />
+                {gameInfo.tips.map((tip, index) => (
+                  <Typography key={index} variant="body2" sx={{ mb: 0.5, pl: 1 }}>
+                    • {tip}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+
+            {/* Trivia Section */}
+            {gameInfo.trivia.length > 0 && (
+              <Box>
+                <Chip label="Fun Facts" size="small" color="secondary" sx={{ mb: 1 }} />
+                {gameInfo.trivia.map((fact, index) => (
+                  <Typography key={index} variant="body2" sx={{ mb: 0.5, pl: 1 }}>
+                    • {fact}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+
+            {/* Technical Section */}
+            {gameInfo.technical.length > 0 && (
+              <Box>
+                <Chip label="Technical Details" size="small" color="info" sx={{ mb: 1 }} />
+                {gameInfo.technical.map((tech, index) => (
+                  <Typography key={index} variant="body2" sx={{ mb: 0.5, pl: 1 }}>
+                    • {tech}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+
+            {/* Records Section */}
+            {gameInfo.records.length > 0 && (
+              <Box>
+                <Chip label="Records & Achievements" size="small" color="success" sx={{ mb: 1 }} />
+                {gameInfo.records.map((record, index) => (
+                  <Typography key={index} variant="body2" sx={{ mb: 0.5, pl: 1 }}>
+                    • {record}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+          </Box>
         )}
 
-        {/* Technical Section */}
-        {gameInfo.technical.length > 0 && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle1" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <GameIcon color="primary" />
-              Technical Details
-            </Typography>
-            <Stack spacing={1}>
-              {gameInfo.technical.map((item, index) => (
-                <Typography key={index} variant="body2" sx={{ pl: 2 }}>
-                  • {item}
-                </Typography>
-              ))}
-            </Stack>
-          </>
-        )}
-
-        {/* Records Section */}
-        {gameInfo.records.length > 0 && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle1" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AchievementIcon color="primary" />
-              Records & Achievements
-            </Typography>
-            <Stack spacing={1}>
-              {gameInfo.records.map((item, index) => (
-                <Typography key={index} variant="body2" sx={{ pl: 2 }}>
-                  • {item}
-                </Typography>
-              ))}
-            </Stack>
-          </>
-        )}
-
-        {/* Debug info - solo en desarrollo */}
-        {process.env.NODE_ENV === 'development' && (
-          <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
-            <Typography variant="caption">
-              Debug: State={serverState.getGameStateType()}, Core={serverState.activeCore}, Game={serverState.activeGame}
-            </Typography>
+        {gameInfo.loading && (
+          <Box sx={{ mt: 2 }}>
+            {[1, 2, 3, 4].map((i) => (
+              <Box key={i} sx={{ mb: 2 }}>
+                <Skeleton variant="rectangular" width="100px" height="20px" sx={{ mb: 1 }} />
+                <Skeleton variant="text" width="100%" />
+                <Skeleton variant="text" width="90%" />
+                <Skeleton variant="text" width="85%" />
+              </Box>
+            ))}
           </Box>
         )}
       </Paper>

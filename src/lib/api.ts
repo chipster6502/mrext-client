@@ -24,6 +24,8 @@ import {
   PlaylistResponse,
   PlaylistGame,
   GameContext,
+  // ========== GAMES TYPES ==========
+  PlayingGame,
 } from "./models";
 
 const API_ENDPOINT_KEY = "apiEndpoint";
@@ -178,6 +180,17 @@ export class ControlApi {
   async indexedSystems(): Promise<IndexedSystems> {
     return (await axios.get<IndexedSystems>(`/games/search/systems`)).data;
   }
+
+  async getPlayingGame(): Promise<PlayingGame> {
+  return (await axios.get<PlayingGame>(`/games/playing`)).data;
+}
+
+async searchGames(data: {
+  query: string;
+  system: string;
+}): Promise<SearchResults> {
+  return (await axios.post<SearchResults>(`/games/search`, data)).data;
+}
 
   // control
 
@@ -354,4 +367,21 @@ export class ControlApi {
   async clearClaudeCache(): Promise<void> {
     await axios.post(`/claude/cache/clear`);
   }
+
+  async sendMessage(request: ChatRequest): Promise<ChatResponse> {
+  return (await axios.post<ChatResponse>(`/claude/chat`, request)).data;
+  }
+
+  async getSuggestions(): Promise<SuggestionsResponse> {
+    return (await axios.get<SuggestionsResponse>(`/claude/suggestions`)).data;
+  }
+
+  async getClaudeStatus(): Promise<ClaudeStatus> {
+    return (await axios.get<ClaudeStatus>(`/claude/status`)).data;
+  }
+
+  async generatePlaylist(request: PlaylistRequest): Promise<PlaylistResponse> {
+    return (await axios.post<PlaylistResponse>(`/claude/playlist`, request)).data;
+  }
 }
+
