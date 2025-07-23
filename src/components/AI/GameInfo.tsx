@@ -12,7 +12,7 @@ import {
 import GamepadIcon from "@mui/icons-material/Gamepad";
 import { useServerStateStore } from "../../lib/store";
 import { ControlApi } from "../../lib/api";
-import { PlayingGame } from "../../lib/models";
+import { PlayingGame } from "../../lib/models"; // Make sure to add this interface
 
 // Remove file extension from filename
 const removeFileExtension = (filename: string): string => {
@@ -30,8 +30,8 @@ interface GameInfoState {
   records: string[];
   loading: boolean;
   error: string | null;
-  lastStateId: string;
-  currentPlayingData: PlayingGame | null;
+  lastGame: string;
+  playingData: PlayingGame | null; // Store HTTP endpoint data
 }
 
 export default function GameInfo() {
@@ -46,8 +46,8 @@ export default function GameInfo() {
     records: [],
     loading: false,
     error: null,
-    lastStateId: '',
-    currentPlayingData: null
+    lastGame: '',
+    playingData: null
   });
 
   // Function to fetch current playing game data from HTTP endpoint
@@ -62,32 +62,18 @@ export default function GameInfo() {
     }
   };
 
-  // ✅ IMPROVED: Create more reliable state ID that accounts for SAM
-  const createStateId = (playingData: PlayingGame | null): string => {
-    if (!playingData || !playingData.core || playingData.core === 'None') {
-      return 'no-core';
-    }
-    
-    // Use gameName (which includes SAM data) as primary identifier
-    const gameName = playingData.gameName || '';
-    const systemName = playingData.systemName || playingData.core;
-    
-    // Create a unique ID that changes when either game or system changes
-    return `${systemName}|${gameName}|${playingData.core}`;
-  };
-
   // Function to determine display context from HTTP data
   const getGameContextFromHttp = (data: PlayingGame): string => {
     if (!data.core || data.core === 'None') {
       return '';
     }
 
-    // Priority 1: Use gameName if available (includes SAM data!)
+    // If we have a specific game name, use it
     if (data.gameName && data.gameName.trim() !== '') {
       return data.gameName;
     }
 
-    // Priority 2: Extract from game path
+    // If we have a game path, extract filename
     if (data.game && data.game.trim() !== '') {
       const filename = data.game.split('/').pop() || '';
       if (filename) {
@@ -95,35 +81,41 @@ export default function GameInfo() {
       }
     }
 
-    // Priority 3: Fallback to system/core
+    // Fallback to system name
     return data.systemName || data.core;
   };
 
-  // ✅ IMPROVED: Main effect with better change detection
+  // Function to create a unique state ID from HTTP data
+  const createStateId = (data: PlayingGame | null): string => {
+    if (!data || !data.core || data.core === 'None') {
+      return 'no-core';
+    }
+    
+    return `${data.core}-${data.gameName || data.game || 'system'}`;
+  };
+
+  // Main effect that triggers when WebSocket state changes
   useEffect(() => {
     const checkAndLoadGameInfo = async () => {
-      // Always fetch fresh data from HTTP endpoint 
+      // Get fresh data from HTTP endpoint
       const playingData = await fetchPlayingData();
       const currentStateId = createStateId(playingData);
       
       console.log('🔥 GameInfo: State evaluation:', {
         currentStateId,
-        lastStateId: gameInfo.lastStateId,
-        playingData,
-        websocketCore: serverState.activeCore,
-        websocketGame: serverState.activeGame
+        lastGame: gameInfo.lastGame,
+        playingData
       });
       
-      // ✅ CRITICAL: Always update current playing data in state
-      setGameInfo(prev => ({ ...prev, currentPlayingData: playingData }));
+      // Update playing data in state
+      setGameInfo(prev => ({ ...prev, playingData }));
       
-      // Load info if state changed AND we have valid data
-      if (currentStateId !== gameInfo.lastStateId && 
+      // Load info if state changed AND we have an active core
+      if (currentStateId !== gameInfo.lastGame && 
           playingData && 
           playingData.core && 
           playingData.core !== 'None') {
-        
-        console.log(`🔄 GameInfo: State changed: ${gameInfo.lastStateId} → ${currentStateId}`);
+        console.log(`🔄 GameInfo: State changed: ${gameInfo.lastGame} → ${currentStateId}`);
         
         // Add delay to let data settle
         setTimeout(() => {
@@ -133,7 +125,7 @@ export default function GameInfo() {
       
       // Clear info if no core
       if ((!playingData || !playingData.core || playingData.core === 'None') && 
-          gameInfo.lastStateId !== 'no-core') {
+          gameInfo.lastGame !== 'no-core') {
         console.log('🧹 GameInfo: Clearing game info (no active core)');
         clearGameInfo();
       }
@@ -146,12 +138,7 @@ export default function GameInfo() {
   const loadGameInfo = async (stateId: string, playingData: PlayingGame) => {
     console.log('🤖 GameInfo: loadGameInfo called with HTTP data:', playingData);
     
-    setGameInfo(prev => ({ 
-      ...prev, 
-      loading: true, 
-      error: null,
-      currentPlayingData: playingData 
-    }));
+    setGameInfo(prev => ({ ...prev, loading: true, error: null }));
     
     try {
       const gameContext = getGameContextFromHttp(playingData);
@@ -212,8 +199,8 @@ Records: High scores, speedrun records, achievements`;
         records: sections.records || [],
         loading: false,
         error: null,
-        lastStateId: stateId,
-        currentPlayingData: playingData
+        lastGame: stateId,
+        playingData
       }));
 
     } catch (error) {
@@ -222,8 +209,8 @@ Records: High scores, speedrun records, achievements`;
         ...prev, 
         loading: false, 
         error: error.message || 'Failed to load game information',
-        lastStateId: stateId,
-        currentPlayingData: playingData
+        lastGame: stateId,
+        playingData
       }));
     }
   };
@@ -237,44 +224,37 @@ Records: High scores, speedrun records, achievements`;
       records: [],
       loading: false,
       error: null,
-      lastStateId: 'no-core',
-      currentPlayingData: null
+      lastGame: 'no-core',
+      playingData: null
     });
   };
 
-  // ✅ IMPROVED: Get display name using current HTTP data
+  // Function to get current display name using HTTP data
   const getCurrentDisplayName = () => {
-    const { currentPlayingData } = gameInfo;
+    const { playingData } = gameInfo;
 
-    console.log('🏷️ GameInfo: getCurrentDisplayName with HTTP data:', currentPlayingData);
+    console.log('🏷️ GameInfo: getCurrentDisplayName with HTTP data:', playingData);
 
-    if (!currentPlayingData || !currentPlayingData.core || currentPlayingData.core === 'None') {
+    if (!playingData || !playingData.core || playingData.core === 'None') {
       return 'No active game';
     }
     
-    // ✅ PRIORITY: Use gameName if available (this includes SAM data!)
-    if (currentPlayingData.gameName && currentPlayingData.gameName.trim() !== '') {
-      // For arcade games, show as "GameName (Arcade)"
-      if (currentPlayingData.systemName === 'Arcade' || 
-          currentPlayingData.system === 'Arcade' ||
-          !currentPlayingData.game || currentPlayingData.game.trim() === '') {
-        return `${currentPlayingData.gameName} (Arcade)`;
-      }
-      // For other games, show as "GameName (System)"
-      return `${currentPlayingData.gameName} (${currentPlayingData.core})`;
+    // Use gameName if available (this includes SAM data!)
+    if (playingData.gameName && playingData.gameName.trim() !== '') {
+      return `${playingData.gameName} (${playingData.core})`;
     }
     
     // Fallback to game path
-    if (currentPlayingData.game && currentPlayingData.game.trim() !== '') {
-      const filename = currentPlayingData.game.split('/').pop() || '';
+    if (playingData.game && playingData.game.trim() !== '') {
+      const filename = playingData.game.split('/').pop() || '';
       if (filename) {
         const gameName = removeFileExtension(filename);
-        return `${gameName} (${currentPlayingData.core})`;
+        return `${gameName} (${playingData.core})`;
       }
     }
     
-    // Final fallback to system name
-    return `${currentPlayingData.systemName || currentPlayingData.core} System`;
+    // Fallback to system name
+    return `${playingData.systemName || playingData.core} System`;
   };
 
   return (
@@ -302,13 +282,13 @@ Records: High scores, speedrun records, achievements`;
           </Alert>
         )}
 
-        {!gameInfo.loading && !gameInfo.error && gameInfo.lastStateId === 'no-core' && (
+        {!gameInfo.loading && !gameInfo.error && gameInfo.lastGame === 'no-core' && (
           <Typography variant="body2" color="text.secondary">
             No active game detected
           </Typography>
         )}
 
-        {!gameInfo.loading && !gameInfo.error && gameInfo.lastStateId !== 'no-core' && (
+        {!gameInfo.loading && !gameInfo.error && gameInfo.lastGame !== 'no-core' && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Tips Section */}
             {gameInfo.tips.length > 0 && (
