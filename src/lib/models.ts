@@ -201,7 +201,7 @@ export interface SuggestionsResponse {
 // ========== PLAYLIST TYPES ==========
 export interface PlaylistRequest {
   theme: string;
-  game_count?: number;  // ← Cambiado de max_games a game_count
+  game_count?: number;  // ← Changed from max_games to game_count
   systems?: string[];
 }
 

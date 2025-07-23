@@ -91,7 +91,7 @@ export interface ServerState {
   getGameStateType: () => 'none' | 'system' | 'game' | 'arcade' | 'stale';
 }
 
-// ✅ FUNCIÓN: Detectar si es juego arcade
+// ✅ FUNCTION: Detect if it's an arcade game
 const isArcadeGame = (core: string, game: string) => {
   const ALL_KNOWN_SYSTEMS = [
     // CONSOLES
@@ -156,7 +156,7 @@ const isArcadeGame = (core: string, game: string) => {
   return false;
 };
 
-// ✅ NUEVA FUNCIÓN: Validar si el juego corresponde al core actual (validación semántica)
+/// ✅ NEW FUNCTION: Validate if the game corresponds to the current core (semantic validation)
 const isValidGameForCore = (activeCore: string, activeGame: string) => {
   if (!activeGame || activeGame === 'None' || !activeCore || activeCore === 'None') {
     return false;

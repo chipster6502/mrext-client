@@ -336,7 +336,7 @@ export default function PlaylistGenerator() {
         </Typography>
       </Paper>
 
-      {/* Error de sistemas */}
+      {/* Systems error */}
       {systemsError && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           {systemsError}
