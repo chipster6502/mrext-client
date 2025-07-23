@@ -97,16 +97,16 @@ const isArcadeGame = (core: string, game: string) => {
     // CONSOLES
     "AdventureVision", "AVision", "Arcadia", "Astrocade", "Atari2600", "Atari5200", "Atari7800", 
     "AtariLynx", "CasioPV1000", "CasioPV2000", "ChannelF", "CD-i", "Coleco", "ColecoVision", "CreatiVision",
-    "FDS", "Gamate", "Gameboy", "Gameboy2P", "GameboyColor", "GameNWatch", "GBA", "GBA2P",
+    "FDS", "Gamate", "Gameboy", "Gameboy2P", "GameboyColor", "GameGear", "GameNWatch", "GBA", "GBA2P",
     "Genesis", "Intellivision", "Jaguar", "MasterSystem", "MegaDuck", "NES", "NeoGeo",
     "NeoGeoCD", "Nintendo64", "Odyssey2", "PCFX", "PokemonMini", "PSX", "Saturn", "Sega32X", "S32X",
-    "SegaCD", "SG1000", "SMS", "SNES", "SuperGameboy", "SuperGrafx", "SuperVision",
+    "MegaCD", "SG1000", "SMS", "SNES", "SuperGameboy", "SuperGrafx", "SuperVision",
     "Tamagotchi", "TurboGrafx16", "TurboGrafx16CD", "VC4000", "Vectrex", "WonderSwan",
     "WonderSwanColor",
     
     // COMPUTERS
     "AcornAtom", "AcornElectron", "AliceMC10", "Amiga", "AmigaCD32", "Amstrad", "AmstradPCW",
-    "Apogee", "AppleI", "AppleII", "Apple-II", "Aquarius", "Atari800", "AtariST", "BBCMicro", "BK0011M",
+    "Apogee", "AppleI", "AppleII", "Apple-II", "Aquarius", "Atari800", "AtariST", "BBCMicro", "BK0011M", "C16",
     "C64", "ChipTest", "CoCo2", "CoCo3", "EDSAC", "Galaksija", "Interact", "Jupiter",
     "Laser", "Lynx48", "Macintosh", "MegaST", "MO5", "MSX", "MultiComp", "Orao", "Oric",
     "PC88", "PDP1", "PET2001", "PMD85", "RX78", "SAMCoupe", "SharpMZ", "SordM5",

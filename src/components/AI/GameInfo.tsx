@@ -1,4 +1,4 @@
-// src/components/AI/GameInfo.tsx - Versión simplificada con validación semántica
+// src/components/AI/GameInfo.tsx - Simplified version with semantic validation
 
 import React, { useState, useEffect } from 'react';
 import {

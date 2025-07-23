@@ -185,24 +185,29 @@ export default function PlaylistGenerator() {
         icon: '🎮' 
       },
       { 
-        name: 'Sega Collection', 
-        systems: ['Genesis', 'SMS', 'GG'].filter(s => availableSystemIds.includes(s)), 
+        name: 'Sega Console Collection', // ✅ UPDATED: Changed name and added more systems
+        systems: ['Genesis', 'MasterSystem', 'GameGear', 'MegaCD', 'SG1000', 'Saturn', 'Sega32X'].filter(s => availableSystemIds.includes(s)), 
         icon: '🦔' 
       },
       { 
-        name: 'Arcade Classics', // ✅ NEW: Dedicated arcade preset
+        name: 'Arcade Classics',
         systems: ['Arcade'].filter(s => availableSystemIds.includes(s)), 
         icon: '🎰' 
       },
       { 
-        name: '16-bit Era', 
-        systems: ['SNES', 'Genesis'].filter(s => availableSystemIds.includes(s)), 
+        name: '16-bit Era', // ✅ UPDATED: Added more 16-bit systems
+        systems: ['SNES', 'Genesis', 'NeoGeo', 'SuperGrafx', 'TurboGrafx16', 'TurboGrafx16CD'].filter(s => availableSystemIds.includes(s)), 
         icon: '🕹️' 
       },
       { 
-        name: 'Handhelds', 
-        systems: ['GB', 'GBC', 'GBA'].filter(s => availableSystemIds.includes(s)), 
+        name: 'Handhelds', // ✅ UPDATED: Added many more handheld systems
+        systems: ['Gameboy', 'GameboyColor', 'GBA', 'AtariLynx', 'GameNWatch', 'GameGear', 'SuperGameboy', 'WonderSwan', 'WonderSwanColor'].filter(s => availableSystemIds.includes(s)), 
         icon: '📱' 
+      },
+      {
+        name: 'Commodore 4ever', // ✅ NEW: Commodore preset
+        systems: ['C16', 'C64', 'VIC20', 'PET2001'].filter(s => availableSystemIds.includes(s)),
+        icon: '🖥️'
       },
       { 
         name: 'Early Consoles', 
@@ -210,7 +215,7 @@ export default function PlaylistGenerator() {
         icon: '👾' 
       },
       { 
-        name: 'Popular 6', // ✅ UPDATED: From Popular 5 to Popular 6 with Arcade
+        name: 'Popular 6',
         systems: ['Arcade', 'NES', 'SNES', 'Genesis', 'GBA', 'PSX'].filter(s => availableSystemIds.includes(s)), 
         icon: '⭐' 
       }
@@ -484,24 +489,6 @@ export default function PlaylistGenerator() {
               sx={{ width: 150 }}
               inputProps={{ min: 1, max: 15 }}
             />
-
-            <Button
-          variant="outlined"
-          color="secondary"
-          onClick={async () => {
-            try {
-              const response = await fetch('/api/claude/debug-active-game');
-              const data = await response.json();
-              console.log('=== ARCADE DEBUG INFO ===', data);
-              alert('Debug info logged to console. Check browser dev tools.');
-            } catch (error) {
-              console.error('Debug error:', error);
-            }
-          }}
-          sx={{ mr: 1 }}
-        >
-          🔍 Debug Active Game
-        </Button>
 
             <Button
               variant="contained"
