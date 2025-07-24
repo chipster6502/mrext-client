@@ -1,4 +1,4 @@
-// src/components/AI/GameInfo.tsx - Simplified version with semantic validation
+// src/components/AI/GameInfo.tsx - Fixed version with Claude context integration
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -33,6 +33,16 @@ const removeFileExtension = (filename: string) => {
   return filename;
 };
 
+// Interface for Claude game context response
+interface GameContext {
+  core_name: string;
+  game_name: string;
+  system_name: string;
+  game_path: string;
+  last_started: string;
+  timestamp: string;
+}
+
 export default function GameInfo() {
   const theme = useTheme();
   const serverState = useServerStateStore();
@@ -47,50 +57,74 @@ export default function GameInfo() {
     lastGame: ''
   });
 
-  // ✅ SIMPLE & EFFECTIVE: React only to server state changes with delay
-  useEffect(() => {
-    const currentState = () => {
-      if (!serverState.activeCore || serverState.activeCore === 'None') {
-        return 'no-core';
-      }
-      
-      const gameStateType = serverState.getGameStateType();
-      return `${gameStateType}-${serverState.activeCore}-${serverState.activeGame}`;
-    };
-    
-    const currentStateId = currentState();
-    
-    console.log('🔥 GameInfo: Server state changed, evaluating:', {
-      currentStateId,
-      lastGame: gameInfo.lastGame,
-      activeCore: serverState.activeCore,
-      activeGame: serverState.activeGame
-    });
-    
-    // Load info if state changed AND we have an active core
-    if (currentStateId !== gameInfo.lastGame && 
-        serverState.activeCore && 
-        serverState.activeCore !== 'None') {
-      console.log(`🔄 GameInfo: State changed: ${gameInfo.lastGame} → ${currentStateId}`);
-      
-      // ✅ KEY: Add delay to let WebSocket data settle
-      const timeoutId = setTimeout(() => {
-        loadGameInfo(currentStateId);
-      }, 500); // 500ms delay to let MiSTer update activeGame
-      
-      return () => clearTimeout(timeoutId);
-    }
-    
-    // Clear info if no core
-    if ((!serverState.activeCore || serverState.activeCore === 'None') && 
-        gameInfo.lastGame !== 'no-core') {
-      console.log('🧹 GameInfo: Clearing game info (no active core)');
-      clearGameInfo();
-    }
-  }, [serverState.activeCore, serverState.activeGame]);
+  const [displayName, setDisplayName] = useState('No active game');
+  const [claudeContext, setClaudeContext] = useState<GameContext | null>(null);
 
-  // ✅ Function to determine what to show and load
-  const loadGameInfo = async (stateId: string) => {
+// Function to fetch Claude game context
+const fetchClaudeContext = async (): Promise<GameContext | null> => {
+  try {
+    console.log('🤖 GameInfo: Fetching Claude context...');
+    
+    // ✅ FIX: Use correct MiSTer URL
+    const apiURL = window.location.hostname === 'localhost' 
+      ? 'http://192.168.1.222:8182/api/claude/game-context'  // Development
+      : '/api/claude/game-context';  // Production
+    
+    console.log('🌐 GameInfo: Using API URL:', apiURL);
+    const response = await fetch(apiURL);
+    
+    if (response.ok) {
+      const context: GameContext = await response.json();
+      console.log('✅ GameInfo: Claude context received:', context);
+      setClaudeContext(context);
+      return context;
+    } else {
+      console.warn(`⚠️ GameInfo: Claude context failed (${response.status})`);
+      const errorText = await response.text();
+      console.error('Error details:', errorText);
+      setClaudeContext(null);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ GameInfo: Error fetching Claude context:', error);
+    setClaudeContext(null);
+    return null;
+  }
+};
+
+  // Function to update display name
+  const updateDisplayName = (context: GameContext | null) => {
+    const gameStateType = serverState.getGameStateType();
+    const core = serverState.activeCore;
+    const game = serverState.activeGame;
+
+    if (!core || core === 'None') {
+      setDisplayName('No active game');
+      return;
+    }
+
+    // ✅ Use Claude context for arcade games if available
+    if (gameStateType === 'arcade' && context?.game_name && context?.system_name) {
+      const newDisplayName = `${context.game_name} (${context.system_name})`;
+      setDisplayName(newDisplayName);
+      console.log(`🎯 GameInfo: Using Claude context: "${newDisplayName}"`);
+      return;
+    }
+
+    // ✅ Fallback logic for all other cases
+    if (gameStateType === 'arcade') {
+      setDisplayName(`${core} (Arcade)`);
+    } else if (gameStateType === 'game') {
+      const filename = game.split('/').pop() || '';
+      const gameName = removeFileExtension(filename);
+      setDisplayName(`${gameName} (${core})`);
+    } else {
+      setDisplayName(`${core} System`);
+    }
+  };
+
+  // Function to load game information from Claude
+  const loadGameInfo = async (stateId: string, context: GameContext | null) => {
     const gameStateType = serverState.getGameStateType();
     const core = serverState.activeCore;
     const game = serverState.activeGame;
@@ -102,21 +136,27 @@ export default function GameInfo() {
     try {
       let gameContext: string;
       
-      switch (gameStateType) {
-        case 'arcade':
-          gameContext = core;
-          break;
-        case 'game':
-          gameContext = game;
-          break;
-        case 'system':
-        case 'none':
-        default:
-          gameContext = `${core} system`;
-          break;
+      // ✅ Use Claude context for arcade games if available
+      if (gameStateType === 'arcade' && context?.game_name) {
+        gameContext = context.game_name;
+        console.log(`🎮 GameInfo: Using Claude context for prompt: "${gameContext}"`);
+      } else {
+        // ✅ Fallback to original logic
+        switch (gameStateType) {
+          case 'arcade':
+            gameContext = core;
+            break;
+          case 'game':
+            gameContext = game;
+            break;
+          case 'system':
+          case 'none':
+          default:
+            gameContext = `${core} system`;
+            break;
+        }
+        console.log(`📝 GameInfo: Using fallback context: "${gameContext}"`);
       }
-
-      console.log('📝 GameInfo: Loading context:', gameContext);
 
       const prompt = `Provide interesting information about ${gameContext}. Format your response with these sections:
 
@@ -182,6 +222,8 @@ Keep each point concise and engaging.`;
         lastGame: stateId
       });
 
+      console.log('✅ GameInfo: Successfully loaded game info');
+
     } catch (error) {
       console.error('❌ GameInfo: Error loading info:', error);
       setGameInfo(prev => ({ 
@@ -204,47 +246,65 @@ Keep each point concise and engaging.`;
       error: null,
       lastGame: 'no-core'
     });
+    setDisplayName('No active game');
+    setClaudeContext(null);
   };
 
-  // ✅ Function to get current display name
-  const getCurrentDisplayName = () => {
-    const gameStateType = serverState.getGameStateType();
-    const core = serverState.activeCore;
-    const game = serverState.activeGame;
-
-    console.log('🏷️ GameInfo: formatGameTitle debug:', {
-      activeCore: core,
-      activeGame: game,
-      gameStateType,
-      timestamp: new Date().toLocaleTimeString()
+  // ✅ MAIN EFFECT: React to server state changes
+  useEffect(() => {
+    const currentState = () => {
+      if (!serverState.activeCore || serverState.activeCore === 'None') {
+        return 'no-core';
+      }
+      
+      const gameStateType = serverState.getGameStateType();
+      return `${gameStateType}-${serverState.activeCore}-${serverState.activeGame}`;
+    };
+    
+    const currentStateId = currentState();
+    
+    console.log('🔥 GameInfo: Server state changed:', {
+      currentStateId,
+      lastGame: gameInfo.lastGame,
+      activeCore: serverState.activeCore,
+      activeGame: serverState.activeGame
     });
-
-    if (!core || core === 'None') {
-      return 'No active game';
+    
+    // Load info if state changed AND we have an active core
+    if (currentStateId !== gameInfo.lastGame && 
+        serverState.activeCore && 
+        serverState.activeCore !== 'None') {
+      console.log(`🔄 GameInfo: State changed: ${gameInfo.lastGame} → ${currentStateId}`);
+      
+      // ✅ Add delay to let WebSocket data settle
+      const timeoutId = setTimeout(async () => {
+        // First, fetch Claude context
+        const context = await fetchClaudeContext();
+        
+        // Update display name with context
+        updateDisplayName(context);
+        
+        // Then load game info
+        await loadGameInfo(currentStateId, context);
+      }, 500); // 500ms delay
+      
+      return () => clearTimeout(timeoutId);
     }
     
-    // For arcade games, the core name IS the game name
-    if (gameStateType === 'arcade') {
-      return `${core} (Arcade)`;
+    // Clear info if no core
+    if ((!serverState.activeCore || serverState.activeCore === 'None') && 
+        gameInfo.lastGame !== 'no-core') {
+      console.log('🧹 GameInfo: Clearing game info (no active core)');
+      clearGameInfo();
     }
-    
-    // For valid games, show game name + core
-    if (gameStateType === 'game') {
-      const filename = game.split('/').pop() || '';
-      const gameName = removeFileExtension(filename);
-      return `${gameName} (${core})`;
-    }
-    
-    // For system or anything else, show just the system name
-    return `${core} System`;
-  };
+  }, [serverState.activeCore, serverState.activeGame, gameInfo.lastGame]);
 
   return (
     <Box sx={{ p: 2 }}>
       <Paper elevation={2} sx={{ p: 2 }}>
         <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <InfoIcon color="primary" />
-          {getCurrentDisplayName()}
+          {displayName}
         </Typography>
         
         {gameInfo.loading && (
@@ -334,7 +394,7 @@ Keep each point concise and engaging.`;
         {process.env.NODE_ENV === 'development' && (
           <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
             <Typography variant="caption">
-              Debug: State={serverState.getGameStateType()}, Core={serverState.activeCore}, Game={serverState.activeGame}
+              Debug: State={serverState.getGameStateType()}, Core={serverState.activeCore}, Display={displayName}
             </Typography>
           </Box>
         )}
