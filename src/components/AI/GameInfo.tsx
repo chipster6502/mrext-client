@@ -60,15 +60,15 @@ export default function GameInfo() {
   const [displayName, setDisplayName] = useState('No active game');
   const [claudeContext, setClaudeContext] = useState<GameContext | null>(null);
 
-// Function to fetch Claude game context
+// Function to fetch Claude game context - FINAL OPTIMIZED VERSION
 const fetchClaudeContext = async (): Promise<GameContext | null> => {
   try {
     console.log('🤖 GameInfo: Fetching Claude context...');
     
-    // ✅ FIX: Use correct MiSTer URL
-    const apiURL = window.location.hostname === 'localhost' 
-      ? 'http://192.168.1.222:8182/api/claude/game-context'  // Development
-      : '/api/claude/game-context';  // Production
+    // ✅ FINAL OPTIMIZATION: Use only relative URL
+    // Vite proxy handles this automatically in development
+    // In production, served from the same server
+    const apiURL = '/api/claude/game-context';
     
     console.log('🌐 GameInfo: Using API URL:', apiURL);
     const response = await fetch(apiURL);
