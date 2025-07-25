@@ -33,13 +33,13 @@ const removeFileExtension = (filename: string) => {
   return filename;
 };
 
-// Interface for Claude game context response
 interface GameContext {
   core_name: string;
   game_name: string;
   system_name: string;
   game_path: string;
   last_started: string;
+  sam_active: boolean;  // ✅ NEW: SAM active status
   timestamp: string;
 }
 
@@ -93,72 +93,96 @@ const fetchClaudeContext = async (): Promise<GameContext | null> => {
 };
 
   // Function to update display name
-  const updateDisplayName = (context: GameContext | null) => {
-    const gameStateType = serverState.getGameStateType();
-    const core = serverState.activeCore;
-    const game = serverState.activeGame;
+const updateDisplayName = (context: GameContext | null) => {
+  const gameStateType = serverState.getGameStateType();
+  const core = serverState.activeCore;
+  const game = serverState.activeGame;
 
-    if (!core || core === 'None') {
-      setDisplayName('No active game');
-      return;
-    }
+  if (!core || core === 'None') {
+    setDisplayName('No active game');
+    return;
+  }
 
-    // ✅ Use Claude context for arcade games if available
-    if (gameStateType === 'arcade' && context?.game_name && context?.system_name) {
-      const newDisplayName = `${context.game_name} (${context.system_name})`;
-      setDisplayName(newDisplayName);
-      console.log(`🎯 GameInfo: Using Claude context: "${newDisplayName}"`);
-      return;
-    }
+  // ✅ PRIORITY 1: SAM active - use SAM info regardless of gameStateType
+  if (context?.sam_active && context?.game_name && context?.system_name) {
+    const newDisplayName = `${context.game_name} (${context.system_name})`;
+    setDisplayName(newDisplayName);
+    console.log(`🎯 GameInfo: SAM ACTIVE - Using Claude context: "${newDisplayName}"`);
+    return;
+  }
 
-    // ✅ Fallback logic for all other cases
-    if (gameStateType === 'arcade') {
-      setDisplayName(`${core} (Arcade)`);
-    } else if (gameStateType === 'game') {
-      const filename = game.split('/').pop() || '';
-      const gameName = removeFileExtension(filename);
-      setDisplayName(`${gameName} (${core})`);
+  // ✅ PRIORITY 2: Arcade games - use Claude context if available (ORIGINAL LOGIC)
+  if (gameStateType === 'arcade' && context?.game_name && context?.system_name) {
+    const newDisplayName = `${context.game_name} (${context.system_name})`;
+    setDisplayName(newDisplayName);
+    console.log(`🎯 GameInfo: ARCADE - Using Claude context: "${newDisplayName}"`);
+    return;
+  }
+
+  // ✅ PRIORITY 3: Fallback logic - EXACTLY as it was originally
+  if (gameStateType === 'arcade') {
+    setDisplayName(`${core} (Arcade)`);
+    console.log(`📝 GameInfo: ARCADE fallback: "${core} (Arcade)"`);
+  } else if (gameStateType === 'game') {
+    const filename = game.split('/').pop() || '';
+    const gameName = removeFileExtension(filename);
+    setDisplayName(`${gameName} (${core})`);
+    console.log(`📝 GameInfo: GAME: "${gameName} (${core})"`);
+  } else {
+    setDisplayName(`${core} System`);
+    console.log(`📝 GameInfo: SYSTEM: "${core} System"`);
+  }
+};
+
+// Function to load game information from Claude
+const loadGameInfo = async (stateId: string, context: GameContext | null) => {
+  const gameStateType = serverState.getGameStateType();
+  const core = serverState.activeCore;
+  const game = serverState.activeGame;
+  
+  console.log('🤖 GameInfo: loadGameInfo called:', { 
+    gameStateType, 
+    core, 
+    game, 
+    stateId, 
+    samActive: context?.sam_active 
+  });
+  
+  setGameInfo(prev => ({ ...prev, loading: true, error: null }));
+  
+  try {
+    let gameContext: string;
+    
+    // ✅ FIXED: Use sam_active flag instead of game_path
+    if (context?.sam_active && context?.game_name) {
+      gameContext = context.game_name;
+      console.log(`🎯 GameInfo: SAM ACTIVE - Using Claude context for prompt: "${gameContext}"`);
+    } else if (gameStateType === 'arcade' && context?.game_name) {
+      // ✅ Use Claude context for arcade games if available (original logic)
+      gameContext = context.game_name;
+      console.log(`🎮 GameInfo: Using Claude context for prompt: "${gameContext}"`);
     } else {
-      setDisplayName(`${core} System`);
-    }
-  };
-
-  // Function to load game information from Claude
-  const loadGameInfo = async (stateId: string, context: GameContext | null) => {
-    const gameStateType = serverState.getGameStateType();
-    const core = serverState.activeCore;
-    const game = serverState.activeGame;
-    
-    console.log('🤖 GameInfo: loadGameInfo called:', { gameStateType, core, game, stateId });
-    
-    setGameInfo(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
-      let gameContext: string;
-      
-      // ✅ Use Claude context for arcade games if available
-      if (gameStateType === 'arcade' && context?.game_name) {
-        gameContext = context.game_name;
-        console.log(`🎮 GameInfo: Using Claude context for prompt: "${gameContext}"`);
-      } else {
-        // ✅ Fallback to original logic
-        switch (gameStateType) {
-          case 'arcade':
-            gameContext = core;
-            break;
-          case 'game':
-            gameContext = game;
-            break;
-          case 'system':
-          case 'none':
-          default:
-            gameContext = `${core} system`;
-            break;
-        }
-        console.log(`📝 GameInfo: Using fallback context: "${gameContext}"`);
+      // ✅ Fallback to original logic
+      switch (gameStateType) {
+        case 'arcade':
+          gameContext = core;
+          break;
+        case 'game':
+          gameContext = game;
+          break;
+        case 'system':
+        case 'none':
+        default:
+          gameContext = `${core} system`;
+          break;
       }
+      console.log(`📝 GameInfo: Using fallback context: "${gameContext}"`);
+    }
 
-      const prompt = `Provide interesting information about ${gameContext}. Format your response with these sections:
+    // ✅ RESTORED: Original prompt format (NOT JSON)
+    const prompt = `Provide interesting information about ${gameContext}.
+
+Format your response with these sections:
 
 TIPS:
 - (3-4 gameplay tips or strategies)
@@ -174,66 +198,66 @@ RECORDS:
 
 Keep each point concise and engaging.`;
 
-      const request: ChatRequest = {
-        message: prompt,
-        include_context: true,
-        session_id: `gameinfo_${Date.now()}`
-      };
+    const request: ChatRequest = {
+      message: prompt,
+      include_context: true,
+      session_id: `gameinfo_${Date.now()}`
+    };
 
-      const response = await api.sendClaudeMessage(request);
-      
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      // Parse response into sections
-      const sections = {
-        tips: [],
-        trivia: [],
-        technical: [],
-        records: []
-      };
-
-      const lines = response.content.split('\n');
-      let currentSection = '';
-
-      for (const line of lines) {
-        const cleanLine = line.trim();
-        if (cleanLine.startsWith('TIPS:')) {
-          currentSection = 'tips';
-        } else if (cleanLine.startsWith('TRIVIA:')) {
-          currentSection = 'trivia';
-        } else if (cleanLine.startsWith('TECHNICAL:')) {
-          currentSection = 'technical';
-        } else if (cleanLine.startsWith('RECORDS:')) {
-          currentSection = 'records';
-        } else if (cleanLine.startsWith('-') && currentSection) {
-          sections[currentSection].push(cleanLine.substring(1).trim());
-        }
-      }
-
-      setGameInfo({
-        tips: sections.tips,
-        trivia: sections.trivia,
-        technical: sections.technical,
-        records: sections.records,
-        loading: false,
-        error: null,
-        lastGame: stateId
-      });
-
-      console.log('✅ GameInfo: Successfully loaded game info');
-
-    } catch (error) {
-      console.error('❌ GameInfo: Error loading info:', error);
-      setGameInfo(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: error.message || 'Failed to load game information',
-        lastGame: stateId
-      }));
+    const response = await api.sendClaudeMessage(request);
+    
+    if (response.error) {
+      throw new Error(response.error);
     }
-  };
+
+    // ✅ RESTORED: Original text parsing (NOT JSON parsing)
+    const sections = {
+      tips: [],
+      trivia: [],
+      technical: [],
+      records: []
+    };
+
+    const lines = response.content.split('\n');
+    let currentSection = '';
+
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      if (cleanLine.startsWith('TIPS:')) {
+        currentSection = 'tips';
+      } else if (cleanLine.startsWith('TRIVIA:')) {
+        currentSection = 'trivia';
+      } else if (cleanLine.startsWith('TECHNICAL:')) {
+        currentSection = 'technical';
+      } else if (cleanLine.startsWith('RECORDS:')) {
+        currentSection = 'records';
+      } else if (cleanLine.startsWith('-') && currentSection) {
+        sections[currentSection].push(cleanLine.substring(1).trim());
+      }
+    }
+
+    setGameInfo({
+      tips: sections.tips,
+      trivia: sections.trivia,
+      technical: sections.technical,
+      records: sections.records,
+      loading: false,
+      error: null,
+      lastGame: stateId
+    });
+
+    console.log('✅ GameInfo: Successfully loaded game info');
+
+  } catch (error) {
+    console.error('❌ GameInfo: Error loading info:', error);
+    setGameInfo(prev => ({ 
+      ...prev, 
+      loading: false, 
+      error: error.message || 'Failed to load game information',
+      lastGame: stateId
+    }));
+  }
+};
 
   // Clear game info
   const clearGameInfo = () => {
