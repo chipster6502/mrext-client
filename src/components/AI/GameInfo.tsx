@@ -22,6 +22,16 @@ import { ControlApi } from '../../lib/api';
 import { ChatRequest, ChatResponse } from '../../lib/models';
 import { useServerStateStore } from '../../lib/store';
 
+interface GameInfoState {
+  tips: string[];
+  trivia: string[];
+  technical: string[];
+  records: string[];
+  loading: boolean;
+  error: string | null;
+  lastGame: string;
+}
+
 const api = new ControlApi();
 
 // Helper function to remove file extension
@@ -47,7 +57,7 @@ export default function GameInfo() {
   const theme = useTheme();
   const serverState = useServerStateStore();
   
-  const [gameInfo, setGameInfo] = useState({
+  const [gameInfo, setGameInfo] = useState<GameInfoState>({
     tips: [],
     trivia: [],
     technical: [],
@@ -211,7 +221,7 @@ Keep each point concise and engaging.`;
     }
 
     // ✅ RESTORED: Original text parsing (NOT JSON parsing)
-    const sections = {
+     const sections: Record<string, string[]> = {
       tips: [],
       trivia: [],
       technical: [],
@@ -219,7 +229,7 @@ Keep each point concise and engaging.`;
     };
 
     const lines = response.content.split('\n');
-    let currentSection = '';
+    let currentSection: string | null = null;
 
     for (const line of lines) {
       const cleanLine = line.trim();
@@ -231,7 +241,7 @@ Keep each point concise and engaging.`;
         currentSection = 'technical';
       } else if (cleanLine.startsWith('RECORDS:')) {
         currentSection = 'records';
-      } else if (cleanLine.startsWith('-') && currentSection) {
+      } else if (cleanLine.startsWith('-') && currentSection && sections[currentSection]) {
         sections[currentSection].push(cleanLine.substring(1).trim());
       }
     }
@@ -253,7 +263,7 @@ Keep each point concise and engaging.`;
     setGameInfo(prev => ({ 
       ...prev, 
       loading: false, 
-      error: error.message || 'Failed to load game information',
+      error: error instanceof Error ? error.message : 'Failed to load game information',
       lastGame: stateId
     }));
   }
@@ -261,18 +271,18 @@ Keep each point concise and engaging.`;
 
   // Clear game info
   const clearGameInfo = () => {
-    setGameInfo({
-      tips: [],
-      trivia: [],
-      technical: [],
-      records: [],
-      loading: false,
-      error: null,
-      lastGame: 'no-core'
-    });
-    setDisplayName('No active game');
-    setClaudeContext(null);
-  };
+  setGameInfo({
+    tips: [],
+    trivia: [],
+    technical: [],
+    records: [],
+    loading: false,
+    error: null,
+    lastGame: 'no-core'
+  });
+  setDisplayName('No active game');
+  setClaudeContext(null);
+};
 
   // ✅ MAIN EFFECT: React to server state changes
   useEffect(() => {
@@ -415,7 +425,7 @@ Keep each point concise and engaging.`;
         )}
 
         {/* Debug info - solo en desarrollo */}
-        {process.env.NODE_ENV === 'development' && (
+        {import.meta.env.DEV && (
           <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
             <Typography variant="caption">
               Debug: State={serverState.getGameStateType()}, Core={serverState.activeCore}, Display={displayName}
