@@ -353,23 +353,6 @@ Keep each point concise and engaging.`;
           </Alert>
         )}
 
-        {/* Tips Section */}
-        {gameInfo.tips.length > 0 && (
-          <>
-            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TipIcon color="primary" />
-              Tips & Strategies
-            </Typography>
-            <Stack spacing={1}>
-              {gameInfo.tips.map((tip, index) => (
-                <Typography key={index} variant="body2" sx={{ pl: 2 }}>
-                  • {tip}
-                </Typography>
-              ))}
-            </Stack>
-          </>
-        )}
-
         {/* Trivia Section */}
         {gameInfo.trivia.length > 0 && (
           <>
@@ -382,6 +365,24 @@ Keep each point concise and engaging.`;
               {gameInfo.trivia.map((item, index) => (
                 <Typography key={index} variant="body2" sx={{ pl: 2 }}>
                   • {item}
+                </Typography>
+              ))}
+            </Stack>
+          </>
+        )}
+
+        {/* Tips Section */}
+        {gameInfo.tips.length > 0 && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TipIcon color="primary" />
+              Tips & Strategies
+            </Typography>
+            <Stack spacing={1}>
+              {gameInfo.tips.map((tip, index) => (
+                <Typography key={index} variant="body2" sx={{ pl: 2 }}>
+                  • {tip}
                 </Typography>
               ))}
             </Stack>

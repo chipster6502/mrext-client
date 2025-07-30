@@ -337,19 +337,19 @@ export class ControlApi {
   }
 
   async exportPlaylist(
-    games: PlaylistGame[], 
-    theme: string, 
-    format: 'txt' | 'm3u' | 'json'
-  ): Promise<Blob> {
-    const response = await axios.post(`/claude/export?format=${format}`, {
-      games,
-      theme
-    }, {
-      responseType: 'blob'
-    });
-    
-    return response.data;
-  }
+  games: PlaylistGame[], 
+  theme: string, 
+  format: 'txt' | 'pdf' | 'sync'
+): Promise<Blob> {
+  const response = await axios.post(`/claude/export?format=${format}`, {
+    games,
+    theme
+  }, {
+    responseType: 'blob'
+  });
+  
+  return response.data;
+}
 
   async clearClaudeCache(): Promise<void> {
     await axios.post(`/claude/cache/clear`);

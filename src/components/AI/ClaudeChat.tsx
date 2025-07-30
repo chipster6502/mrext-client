@@ -145,10 +145,14 @@ export default function ClaudeChat() {
     setError(null);
   };
 
-  return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    return (
+    <Box sx={{ 
+      height: '100%',
+      display: 'flex', 
+      flexDirection: 'column'
+    }}>
       {/* Header with status */}
-      <Paper elevation={1} sx={{ p: 2, borderRadius: 0 }}>
+      <Paper elevation={1} sx={{ p: 2, borderRadius: 0, flexShrink: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <AIIcon sx={{ color: theme.palette.primary.main, fontSize: 32 }} />
           <Box sx={{ flexGrow: 1 }}>
@@ -190,26 +194,60 @@ export default function ClaudeChat() {
 
       {/* Error display */}
       {error && (
-        <Alert severity="error" sx={{ borderRadius: 0 }}>
+        <Alert severity="error" sx={{ borderRadius: 0, flexShrink: 0 }}>
           {error}
         </Alert>
       )}
 
       {/* Claude not enabled warning */}
       {status && !status.enabled && (
-        <Alert severity="warning" sx={{ borderRadius: 0 }}>
+        <Alert severity="warning" sx={{ borderRadius: 0, flexShrink: 0 }}>
           Claude AI is not enabled. Go to Remote settings on your MiSTer to activate it.
         </Alert>
       )}
 
-      {/* Chat messages area */}
+      {/* Input area - NOW AT THE TOP, always visible */}
+      <Paper elevation={2} sx={{ 
+        p: 2, 
+        borderRadius: 0,
+        flexShrink: 0,
+        borderBottom: 1,
+        borderColor: 'divider',
+        backgroundColor: 'background.paper'
+      }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+          <TextField
+            fullWidth
+            multiline
+            maxRows={4}
+            placeholder="Ask Claude something..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            disabled={loading || !!(status && !status.enabled)}
+            variant="outlined"
+            size="small"
+          />
+          <Button
+            variant="contained"
+            startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
+            onClick={() => sendMessage()}
+            disabled={loading || !message.trim() || !!(status && !status.enabled)}
+            sx={{ minWidth: 'auto', px: 2 }}
+          >
+            Send
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* Chat messages area - Now scrollable below the input */}
       <Box sx={{ 
         flexGrow: 1, 
         overflow: 'auto', 
         p: 2,
         backgroundColor: theme.palette.background.default
       }}>
-        {/* Auto-suggestions when no messages */}
+        {/* Auto-suggestions when no messages - NOW BELOW input */}
         {suggestions.length > 0 && messages.length === 0 && (
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle2" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -329,33 +367,6 @@ export default function ClaudeChat() {
           </Paper>
         )}
       </Box>
-
-      {/* Input area */}
-      <Paper elevation={2} sx={{ p: 2, borderRadius: 0 }}>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-          <TextField
-            fullWidth
-            multiline
-            maxRows={4}
-            placeholder="Ask Claude something..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={loading || !!(status && !status.enabled)}
-            variant="outlined"
-            size="small"
-          />
-          <Button
-            variant="contained"
-            startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
-            onClick={() => sendMessage()}
-            disabled={loading || !message.trim() || !!(status && !status.enabled)}
-            sx={{ minWidth: 'auto', px: 2 }}
-          >
-            Send
-          </Button>
-        </Box>
-      </Paper>
     </Box>
   );
 }

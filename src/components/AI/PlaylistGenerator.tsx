@@ -293,26 +293,26 @@ export default function PlaylistGenerator() {
     setExportMenuAnchor(null);
   };
 
-  const exportPlaylist = async (format: 'txt' | 'm3u' | 'json') => {
-    try {
-      const blob = await api.exportPlaylist(playlist, lastTheme, format);
-      
-      const filename = `playlist_${lastTheme.replace(/[^a-zA-Z0-9]/g, '_')}.${format}`;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+const exportPlaylist = async (format: 'txt' | 'pdf' | 'sync') => {
+  try {
+    const blob = await api.exportPlaylist(playlist, lastTheme, format);
+    
+    const filename = `playlist_${lastTheme.replace(/[^a-zA-Z0-9]/g, '_')}.${format}`;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
 
-      handleExportClose();
-    } catch (error) {
-      console.error('Export error:', error);
-      setError('Failed to export playlist');
-    }
-  };
+    handleExportClose();
+  } catch (error) {
+    console.error('Export error:', error);
+    setError('Failed to export playlist');
+  }
+};
 
   // Launch a game from the playlist
   const launchGame = async (game: PlaylistGame) => {
@@ -619,13 +619,13 @@ export default function PlaylistGenerator() {
         onClose={handleExportClose}
       >
         <MenuItem onClick={() => exportPlaylist('txt')}>
-          Text File (.txt)
+          📄 Text File (.txt)
         </MenuItem>
-        <MenuItem onClick={() => exportPlaylist('m3u')}>
-          Playlist (.m3u)
+        <MenuItem onClick={() => exportPlaylist('pdf')}>
+          📋 PDF Document (.pdf)
         </MenuItem>
-        <MenuItem onClick={() => exportPlaylist('json')}>
-          JSON Data (.json)
+        <MenuItem onClick={() => exportPlaylist('sync')}>
+          🎮 LaunchSync (.sync)
         </MenuItem>
       </Menu>
     </Box>
