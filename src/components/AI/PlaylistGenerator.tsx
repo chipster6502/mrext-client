@@ -225,36 +225,59 @@ export default function PlaylistGenerator() {
     return presets.filter(preset => preset.systems.length > 0);
   };
 
-  // Generate AI playlist based on theme
-  const generatePlaylist = async (playlistTheme: string) => {
-    if (!playlistTheme.trim()) return;
+// Generate AI playlist based on theme
+const generatePlaylist = async (playlistTheme: string) => {
+  if (!playlistTheme.trim()) return;
 
-    setLoading(true);
-    setError(null);
-    setPlaylist([]);
+  setLoading(true);
+  setError(null);
+  setPlaylist([]);
 
-    try {
-      const request: PlaylistRequest = {
-        theme: playlistTheme.trim(),
-        game_count: maxGames,  // ✅ Fixed: was max_games
-        systems: selectedSystems
-      };
+  try {
+    const request: PlaylistRequest = {
+      theme: playlistTheme.trim(),
+      game_count: maxGames,
+      systems: selectedSystems
+    };
 
-      const response = await api.generatePlaylist(request);
+    console.log('🚀 GeneratePlaylist: Sending request with theme:', playlistTheme.trim());
 
-      if (response.error) {
-        setError(response.error);
-      } else {
-        setPlaylist(response.games);
-        setLastTheme(response.theme);
+    const response = await api.generatePlaylist(request);
+
+    if (response.error) {
+      setError(response.error);
+      setPlaylist([]);
+    } else {
+      setPlaylist(response.games);
+      
+      // Always use response.theme (which may be updated by backend)
+      // instead of the original playlistTheme input
+      const finalTheme = response.theme || playlistTheme.trim();
+      
+      console.log('📥 GeneratePlaylist: Response received');
+      console.log('  Original theme:', playlistTheme.trim());
+      console.log('  Response theme:', response.theme);
+      console.log('  Final theme to use:', finalTheme);
+      
+      // This handles cases where the backend updates the theme (e.g., active game playlists)
+      setLastTheme(finalTheme);
+      
+      // Additional debug info
+      if (response.theme && response.theme !== playlistTheme.trim()) {
+        console.log('🔄 Theme was updated by backend from:', playlistTheme.trim(), 'to:', response.theme);
       }
-    } catch (error) {
-      console.error('Error generating playlist:', error);
-      setError('Error generating playlist. Try selecting fewer systems or reducing the number of games.');
-    } finally {
-      setLoading(false);
+      
+      setError(''); // Clear any previous errors
     }
-  };
+  } catch (error) {
+    console.error('❌ Error generating playlist:', error);
+    setError('Error generating playlist. Try selecting fewer systems or reducing the number of games.');
+    setPlaylist([]);
+    // Don't update lastTheme on error
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSuggestionClick = (suggestion: string) => {
     setTheme(suggestion);
