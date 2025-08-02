@@ -102,7 +102,7 @@ const fetchClaudeContext = async (): Promise<GameContext | null> => {
   }
 };
 
-  // Function to update display name
+// Function to update display name
 const updateDisplayName = (context: GameContext | null) => {
   const gameStateType = serverState.getGameStateType();
   const core = serverState.activeCore;
@@ -121,15 +121,15 @@ const updateDisplayName = (context: GameContext | null) => {
     return;
   }
 
-  // ✅ PRIORITY 2: Arcade games - use Claude context if available (ORIGINAL LOGIC)
-  if (gameStateType === 'arcade' && context?.game_name && context?.system_name) {
+  // ✅ PRIORITY 2: Use Claude context whenever available (NEW - for all game types)
+  if (context?.game_name && context?.system_name) {
     const newDisplayName = `${context.game_name} (${context.system_name})`;
     setDisplayName(newDisplayName);
-    console.log(`🎯 GameInfo: ARCADE - Using Claude context: "${newDisplayName}"`);
+    console.log(`🎯 GameInfo: Using Claude context: "${newDisplayName}"`);
     return;
   }
 
-  // ✅ PRIORITY 3: Fallback logic - EXACTLY as it was originally
+  // ✅ PRIORITY 3: Fallback logic - ONLY when Claude context is not available
   if (gameStateType === 'arcade') {
     setDisplayName(`${core} (Arcade)`);
     console.log(`📝 GameInfo: ARCADE fallback: "${core} (Arcade)"`);
@@ -137,10 +137,10 @@ const updateDisplayName = (context: GameContext | null) => {
     const filename = game.split('/').pop() || '';
     const gameName = removeFileExtension(filename);
     setDisplayName(`${gameName} (${core})`);
-    console.log(`📝 GameInfo: GAME: "${gameName} (${core})"`);
+    console.log(`📝 GameInfo: GAME fallback: "${gameName} (${core})"`);
   } else {
     setDisplayName(`${core} System`);
-    console.log(`📝 GameInfo: SYSTEM: "${core} System"`);
+    console.log(`📝 GameInfo: SYSTEM fallback: "${core} System"`);
   }
 };
 
